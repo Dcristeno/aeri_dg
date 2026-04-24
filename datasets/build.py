@@ -86,6 +86,43 @@ def collate(batch):
 
     return batch_tensor_dict
 
+def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None):
+    if samples_per_id <= 0:
+        return dataset
+
+    pid_to_samples = {}
+    for sample in dataset:
+        pid = sample[0]
+        pid_to_samples.setdefault(pid, []).append(sample)
+
+    rng = random.Random(epoch_seed) if epoch_seed is not None else random
+    sampled_dataset = []
+    for pid in sorted(pid_to_samples.keys()):
+        pid_samples = pid_to_samples[pid]
+        if len(pid_samples) >= samples_per_id:
+            sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
+        else:
+            sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
+
+    return sampled_dataset
+
+def build_finetune_train_loader(args, train_dataset, epoch=None):
+    train_transforms = build_transforms(img_size=args.img_size,
+                                        aug=args.img_aug,
+                                        is_train=True)
+    sampled_dataset = sample_train_dataset_per_pid(
+        train_dataset,
+        args.train_samples_per_id,
+        epoch_seed=epoch,
+    )
+    train_set = ImageTextMLMDataset(sampled_dataset,
+                                    train_transforms,
+                                    text_length=args.text_length)
+    return DataLoader(train_set,
+                      batch_size=args.batch_size,
+                      shuffle=True,
+                      num_workers=args.num_workers)
+
 def build_dataloader(args, tranforms=None):
     logger = logging.getLogger("IRRA.dataset")
 
@@ -226,19 +263,26 @@ def build_zero_shot_loader(args, finetune=False):
                                 shuffle=False,
                                 num_workers=num_workers)
     
-    train_set = ImageTextMLMDataset(syn_dataset.train,
+    train_dataset = syn_dataset.train
+    train_set = ImageTextMLMDataset(train_dataset,
                             train_transforms,
                             text_length=args.text_length)
-    num_classes = len(syn_dataset.train)
+    num_classes = len(train_dataset)
 
     logger.info('using random sampler')
-    train_loader = DataLoader(train_set,
-                                batch_size=args.batch_size,
-                                shuffle=True,
-                                num_workers=num_workers,
-                                )
+    if getattr(args, "train_samples_per_id", 0) > 0:
+        logger.info(
+            f'using per-id epoch sampling: strategy=random, {args.train_samples_per_id} samples per id before shuffle'
+        )
+        train_loader = build_finetune_train_loader(args, train_dataset, epoch=1)
+    else:
+        train_loader = DataLoader(train_set,
+                                    batch_size=args.batch_size,
+                                    shuffle=True,
+                                    num_workers=num_workers,
+                                    )
 
-    return syn_dataset.train, train_loader, val_img_loader, val_txt_loader, num_classes
+    return train_dataset, train_loader, val_img_loader, val_txt_loader, num_classes
 
 def build_filter_loader(args, dataset):
     logger = logging.getLogger("IRRA.dataset")

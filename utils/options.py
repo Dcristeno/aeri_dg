@@ -6,6 +6,7 @@ def get_args():
     ######################## general settings ########################
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument("--name", default="baseline", help="experiment name to save")
+    parser.add_argument("--seed", default=1, type=int, help="random seed used for training")
     parser.add_argument("--output_dir", default="logs")
     parser.add_argument("--log_period", default=100)
     parser.add_argument("--eval_period", default=1)
@@ -37,6 +38,10 @@ def get_args():
     parser.add_argument("--loss_names", default='sdm', help="which loss to use ['mlm', 'cmpm', 'id', 'itc', 'sdm']")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0, help="mlm loss weight")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="id loss weight")
+    parser.add_argument("--bridge_loss_weight", type=float, default=1.0, help="overall weight for the explicit ground-to-aerial bridge loss")
+    parser.add_argument("--bridge_pair_weight", type=float, default=1.0, help="weight of the pair-level aerial-to-ground bridge term")
+    parser.add_argument("--bridge_distill_weight", type=float, default=1.0, help="weight of the relation distillation bridge term")
+    parser.add_argument("--bridge_distill_temp", type=float, default=0.07, help="temperature for the relation distillation bridge term")
     
     ######################## vison trainsformer settings ########################
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
@@ -76,6 +81,7 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--test_batch_size", type=int, default=512)
     parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--train_samples_per_id", type=int, default=0, help="if > 0, resample the finetune train set each epoch with k samples per identity")
     parser.add_argument("--test", dest='training', default=True, action='store_false')
 
     args = parser.parse_args()

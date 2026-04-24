@@ -11,6 +11,12 @@ BATCH_SIZE="${BATCH_SIZE:-64}"
 LR="${LR:-5e-6}"
 LR2="${LR2:-5e-5}"
 NUM_EPOCH="${NUM_EPOCH:-60}"
+SEED="${SEED:-1}"
+TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-0}"
+BRIDGE_LOSS_WEIGHT="${BRIDGE_LOSS_WEIGHT:-1.0}"
+BRIDGE_PAIR_WEIGHT="${BRIDGE_PAIR_WEIGHT:-1.0}"
+BRIDGE_DISTILL_WEIGHT="${BRIDGE_DISTILL_WEIGHT:-1.0}"
+BRIDGE_DISTILL_TEMP="${BRIDGE_DISTILL_TEMP:-0.07}"
 USE_SWANLAB="${USE_SWANLAB:-1}"
 SWANLAB_PROJECT="${SWANLAB_PROJECT:-CFAN}"
 SWANLAB_EXPERIMENT="${SWANLAB_EXPERIMENT:-$RUN_NAME}"
@@ -29,6 +35,7 @@ fi
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES}" \
 python finetune.py \
   --name "${RUN_NAME}" \
+  --seed "${SEED}" \
   --img_aug \
   --batch_size "${BATCH_SIZE}" \
   --MLM \
@@ -37,6 +44,11 @@ python finetune.py \
   --lr "${LR}" \
   --lr2 "${LR2}" \
   --num_epoch "${NUM_EPOCH}" \
+  --train_samples_per_id "${TRAIN_SAMPLES_PER_ID}" \
+  --bridge_loss_weight "${BRIDGE_LOSS_WEIGHT}" \
+  --bridge_pair_weight "${BRIDGE_PAIR_WEIGHT}" \
+  --bridge_distill_weight "${BRIDGE_DISTILL_WEIGHT}" \
+  --bridge_distill_temp "${BRIDGE_DISTILL_TEMP}" \
   --root_dir "${DATA_ROOT}" \
   --finetune "${FINETUNE_INIT}" \
   "${SWANLAB_ARGS[@]}"

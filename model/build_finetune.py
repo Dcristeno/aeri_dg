@@ -132,6 +132,7 @@ class IRRA(nn.Module):
             image_feats, ground_image_feats, text_feats = self.base_model(images, ground_images, caption_ids)
 
         i_feats = image_feats[:, 0, :].float()
+        g_i_feats = None
         if ground_image_feats is not None:
             g_i_feats = ground_image_feats[:, 0, :].float()
         t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
@@ -141,6 +142,23 @@ class IRRA(nn.Module):
         if 'cda' in self.current_task:
             ret.update({'cda_loss': objectives.compute_selective_align_loss(i_feats, g_i_feats, t_feats, batch['pids'], logit_scale)})
             # ret.update({'cda_loss': objectives.compute_sdm(i_feats, t_feats, batch['pids'], logit_scale)}) # 仅使用这个就是Base
+
+        if 'bridge' in self.current_task:
+            if g_i_feats is None:
+                raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")
+            bridge_terms = objectives.compute_ground_to_aerial_bridge_terms(
+                i_feats,
+                g_i_feats,
+                t_feats,
+                batch['pids'],
+                logit_scale,
+                distill_temp=self.args.bridge_distill_temp,
+            )
+            weighted_pair_loss = bridge_terms["pair_loss"] * self.args.bridge_pair_weight * self.args.bridge_loss_weight
+            weighted_distill_loss = bridge_terms["distill_loss"] * self.args.bridge_distill_weight * self.args.bridge_loss_weight
+            ret.update({'bridge_pair_loss': weighted_pair_loss})
+            ret.update({'bridge_distill_loss': weighted_distill_loss})
+            ret.update({'bridge_loss': weighted_pair_loss + weighted_distill_loss})
 
         if 'fta' in self.current_task:
             B = text_feats.shape[0]

@@ -4,6 +4,7 @@ import random
 import time
 import torch
 from datasets.build import build_filter_loader
+from datasets.build import build_finetune_train_loader
 from model import objectives
 from utils.meter import AverageMeter
 from utils.metrics import Evaluator
@@ -32,6 +33,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     meters = {
         "loss": AverageMeter(),
         "cda_loss": AverageMeter(),
+        "bridge_loss": AverageMeter(),
+        "bridge_pair_loss": AverageMeter(),
+        "bridge_distill_loss": AverageMeter(),
         "fta_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
@@ -45,7 +49,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
 
-    best_top1 = 0.0
+    best_rsum = 0.0
 
     # train
     for epoch in range(start_epoch, num_epoch + 1):
@@ -53,6 +57,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         for meter in meters.values():
             meter.reset()
         model.train()
+
+        if getattr(args, "train_samples_per_id", 0) > 0:
+            train_loader = build_finetune_train_loader(args, trainset, epoch=epoch)
+            logger.info(
+                f"Epoch[{epoch}] rebuilt train loader with per-id sampling: strategy=random, k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
+            )
 
         for n_iter, batch in enumerate(train_loader):
             batch = {k: v.cuda() for k, v in batch.items()}
@@ -65,6 +75,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             
             meters['loss'].update(total_loss.item(), batch_size)
             meters['cda_loss'].update(ret.get('cda_loss', 0), batch_size)
+            meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
+            meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
+            meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
 
             optimizer.zero_grad()
@@ -103,23 +116,23 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
                 .format(epoch, time_per_batch,
                         train_loader.batch_size / time_per_batch))
         if epoch % eval_period == 0:
-            logger.info(f"best R1: {best_top1}")
+            logger.info(f"best RSum: {best_rsum}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 if args.distributed:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
                 else:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
-                top1 = eval_metrics["t2i_RSum"]
+                rsum = eval_metrics["t2i_RSum"]
                 if swanlab_run is not None:
                     swanlab_run.log({"epoch": epoch, **{f"val/{k}": v for k, v in eval_metrics.items()}})
                 torch.cuda.empty_cache()
-                if best_top1 < top1:
-                    best_top1 = top1
+                if best_rsum < rsum:
+                    best_rsum = rsum
                     arguments["epoch"] = epoch
                     checkpointer.save("best0", **arguments)
     if get_rank() == 0:
-        logger.info(f"best R1: {best_top1} at epoch {arguments['epoch']}")
+        logger.info(f"best RSum: {best_rsum} at epoch {arguments['epoch']}")
 
 
 def do_inference(model, test_img_loader, test_txt_loader):
