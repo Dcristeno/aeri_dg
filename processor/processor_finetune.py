@@ -13,7 +13,7 @@ from prettytable import PrettyTable
 import torch.nn.functional as F
 
 def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
-             scheduler, checkpointer, trainset):
+             scheduler, checkpointer, trainset, swanlab_run=None):
 
     log_period = args.log_period
     eval_period = args.eval_period
@@ -86,6 +86,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         for k, v in meters.items():
             if v.avg > 0:
                 tb_writer.add_scalar(k, v.avg, epoch)
+        if swanlab_run is not None:
+            log_payload = {"epoch": epoch, "lr": scheduler.get_lr()[0]}
+            for k, v in meters.items():
+                if v.avg > 0:
+                    log_payload[f"train/{k}"] = float(v.avg)
+            swanlab_run.log(log_payload)
 
 
         scheduler.step()
@@ -101,9 +107,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 if args.distributed:
-                    top1 = evaluator.eval(model.module.eval())
+                    eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
                 else:
-                    top1 = evaluator.eval(model.module.eval())
+                    eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
+                top1 = eval_metrics["t2i_RSum"]
+                if swanlab_run is not None:
+                    swanlab_run.log({"epoch": epoch, **{f"val/{k}": v for k, v in eval_metrics.items()}})
                 torch.cuda.empty_cache()
                 if best_top1 < top1:
                     best_top1 = top1

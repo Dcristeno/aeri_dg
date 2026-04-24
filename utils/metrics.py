@@ -73,7 +73,7 @@ class Evaluator():
 
         return qfeats.cuda(), gfeats.cuda(), qids, gids
     
-    def eval(self, model, i2t_metric=False):
+    def eval(self, model, i2t_metric=False, return_details=False):
 
         qfeats, gfeats, qids, gids = self._compute_embedding(model)
 
@@ -101,5 +101,16 @@ class Evaluator():
         table.custom_format["mAP"] = lambda f, v: f"{v:.3f}"
         table.custom_format["mINP"] = lambda f, v: f"{v:.3f}"
         self.logger.info('\n' + str(table))
-        
-        return t2i_cmc[0] + t2i_cmc[4] + t2i_cmc[9]
+
+        t2i_rsum = t2i_cmc[0] + t2i_cmc[4] + t2i_cmc[9]
+        if return_details:
+            return {
+                "t2i_R1": float(t2i_cmc[0]),
+                "t2i_R5": float(t2i_cmc[4]),
+                "t2i_R10": float(t2i_cmc[9]),
+                "t2i_RSum": float(t2i_rsum),
+                "t2i_mAP": float(t2i_mAP),
+                "t2i_mINP": float(t2i_mINP),
+            }
+
+        return t2i_rsum

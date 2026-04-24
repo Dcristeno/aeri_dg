@@ -12,6 +12,10 @@ def get_args():
     parser.add_argument("--val_dataset", default="test") # use val set when evaluate, if test use test set
     parser.add_argument("--resume", default=False, action='store_true')
     parser.add_argument("--resume_ckpt_file", default="", help='resume from ...')
+    parser.add_argument("--use_swanlab", default=False, action='store_true', help="whether to log metrics to SwanLab")
+    parser.add_argument("--swanlab_project", default="CFAN", help="SwanLab project name")
+    parser.add_argument("--swanlab_experiment", default="", help="Optional SwanLab experiment name")
+    parser.add_argument("--swanlab_mode", default="cloud", help="SwanLab mode, e.g. cloud or local")
 
     parser.add_argument("--finetune", type=str, default="pretrain/HAMbest0.pth")
     parser.add_argument("--pretrain", type=str, default="")

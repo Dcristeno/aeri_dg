@@ -20,8 +20,11 @@ from model import build_model
 from utils.metrics import Evaluator
 from utils.options import get_args
 from utils.comm import get_rank, synchronize
-# import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+
+try:
+    import swanlab
+except ImportError:
+    swanlab = None
 
 
 def set_seed(seed=0):
@@ -86,6 +89,17 @@ if __name__ == '__main__':
     is_master = get_rank() == 0
     checkpointer = Checkpointer(model, optimizer, scheduler, args.output_dir, is_master)
     evaluator = Evaluator(val_img_loader, val_txt_loader)
+    swanlab_run = None
+    if args.use_swanlab and is_master:
+        if swanlab is None:
+            raise ImportError("SwanLab is not installed. Please run `pip install swanlab` before using --use_swanlab.")
+        swanlab_run = swanlab.init(
+            project=args.swanlab_project,
+            experiment_name=args.swanlab_experiment or name,
+            config=vars(args),
+            mode=args.swanlab_mode,
+            logdir=args.output_dir,
+        )
 
     start_epoch = 1
     if args.resume:
@@ -93,4 +107,4 @@ if __name__ == '__main__':
         start_epoch = checkpoint['epoch']
 
 
-    do_train(start_epoch, args, model, train_loader, evaluator, optimizer, scheduler, checkpointer, trainset)
+    do_train(start_epoch, args, model, train_loader, evaluator, optimizer, scheduler, checkpointer, trainset, swanlab_run=swanlab_run)

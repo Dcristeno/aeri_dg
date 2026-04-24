@@ -1,6 +1,5 @@
 from prettytable import PrettyTable
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 import torch
 import numpy as np
 import time
@@ -19,8 +18,10 @@ from utils.iotools import load_train_configs
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="IRRA Test")
     parser.add_argument("--config_file", default='logs/AERI-PEDES/20251114_050425_finetune/configs.yaml')
-    args = parser.parse_args()
-    args = load_train_configs(args.config_file)
+    parser.add_argument("--checkpoint", default="", help="checkpoint path; defaults to best0.pth under output_dir")
+    cli_args = parser.parse_args()
+    args = load_train_configs(cli_args.config_file)
+    args.checkpoint = cli_args.checkpoint
 
     args.training = False
     logger = setup_logger('IRRA', save_dir=args.output_dir, if_train=args.training)
@@ -30,6 +31,7 @@ if __name__ == '__main__':
     test_img_loader, test_txt_loader, num_classes = build_dataloader(args)
     model = build_model(args, num_classes=num_classes)
     checkpointer = Checkpointer(model)
-    checkpointer.load(f=op.join(args.output_dir, 'best0.pth'))
+    checkpoint_path = args.checkpoint or op.join(args.output_dir, 'best0.pth')
+    checkpointer.load(f=checkpoint_path)
     model.to(device)
     do_inference(model, test_img_loader, test_txt_loader)
