@@ -68,7 +68,6 @@ class AG_ReID(object):
         }
         self.val_id_container = set(self.data_val['image_pids'])
 
-
         # self.train, self.train_id_container = self._process_dir(self.train_dir, is_train=True, camera=camera)
         # self.test, self.test_id_container = self._process_dir(self.query_dir, is_train=False, camera=camera)
         # self.val, self.val_id_container = self._process_dir(self.gallery_dir, is_train=False, camera=camera)
@@ -81,9 +80,9 @@ class AG_ReID(object):
         num_train_pids, num_train_imgs, num_train_captions = \
             len(self.train_id_container), len(self.train), len(self.train)
         num_test_pids, num_test_imgs, num_test_captions = \
-            len(self.test_id_container), len(self.test['captions']), len(self.test['captions'])
+            len(self.test_id_container), len(self.test['img_paths']), len(self.test['captions'])
         num_val_pids, num_val_imgs, num_val_captions = \
-            len(self.val_id_container), len(self.val['captions']), len(self.val['captions'])
+            len(self.val_id_container), len(self.val['img_paths']), len(self.val['captions'])
 
         # TODO use prettytable print comand line table
 

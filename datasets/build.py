@@ -209,6 +209,8 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         syn_dataset = __factory[args.pretrain](root=args.root_dir)
 
+    # The TBAPR paper reports inference on the dataset's test split; keep
+    # finetune-time evaluation aligned with that protocol.
     ds = syn_dataset.test
     val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
                                 val_transforms)
