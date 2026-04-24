@@ -175,6 +175,33 @@ class ImageTextMLMDataset(Dataset):
 
         return ret
 
+    def __getitem__(self, index):
+        item = self.dataset[index]
+        if len(item) >= 5:
+            pid, _, img_path, g_path, caption = item[:5]
+        elif len(item) == 4:
+            pid, img_path, g_path, caption = item
+        else:
+            raise ValueError(f"Unsupported training sample format with length {len(item)}: {item}")
+
+        img = read_image(img_path)
+        g = read_image(g_path)
+        if self.transform is not None:
+            img = self.transform(img)
+            g = self.transform(g)
+        caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
+        mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_tokens.cpu().numpy())
+        ret = {
+            'pids': pid,
+            'images': img,
+            'ground_imgs': g,
+            'caption_ids': caption_tokens,
+            'mlm_ids': mlm_tokens,
+            'mlm_labels': mlm_labels,
+        }
+
+        return ret
+
     # def __getitem__(self, index):
     #     pid, image_id, img_path, caption = self.dataset[index]
     #     img = read_image(img_path)

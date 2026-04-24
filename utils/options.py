@@ -69,7 +69,7 @@ def get_args():
     parser.add_argument("--power", type=float, default=0.9)
 
     ######################## dataset ########################
-    parser.add_argument("--dataset_name", default="AERI-PEDES", help="[CUHK-PEDES, AERI-PEDES, AGDataAttr]")
+    parser.add_argument("--dataset_name", default="AERI-PEDES", help="[CUHK-PEDES, AERI-PEDES, AGTBPR, AGData, AGDataAttr, AGSGData]")
     parser.add_argument("--sampler", default="random", help="choose sampler from [idtentity, random]")
     parser.add_argument("--num_instance", type=int, default=4)
     parser.add_argument("--root_dir", default="/data1/Datasets/ReID/")

@@ -78,7 +78,7 @@ class G2APS(object):
 
     def show_dataset_info(self):
         num_train_pids, num_train_imgs, num_train_captions = \
-            len(self.train_id_container), len(self.train), len(self.text_captions)
+            len(self.train_id_container), len(self.train), len(self.train)
         num_test_pids, num_test_imgs, num_test_captions = \
             len(self.test_id_container), len(self.test['img_paths']), len(self.test['img_paths'])
         num_val_pids, num_val_imgs, num_val_captions = \
