@@ -42,6 +42,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "triad_aerial_text": AverageMeter(),
         "triad_ground_text": AverageMeter(),
         "triad_aerial_ground": AverageMeter(),
+        "moe_loss": AverageMeter(),
+        "moe_aerial_text": AverageMeter(),
+        "moe_ground_text": AverageMeter(),
+        "moe_aerial_ground": AverageMeter(),
         "bridge_loss": AverageMeter(),
         "bridge_pair_loss": AverageMeter(),
         "bridge_distill_loss": AverageMeter(),
@@ -97,6 +101,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['triad_aerial_text'].update(ret.get('triad_aerial_text', 0), batch_size)
             meters['triad_ground_text'].update(ret.get('triad_ground_text', 0), batch_size)
             meters['triad_aerial_ground'].update(ret.get('triad_aerial_ground', 0), batch_size)
+            meters['moe_loss'].update(ret.get('moe_loss', 0), batch_size)
+            meters['moe_aerial_text'].update(ret.get('moe_aerial_text', 0), batch_size)
+            meters['moe_ground_text'].update(ret.get('moe_ground_text', 0), batch_size)
+            meters['moe_aerial_ground'].update(ret.get('moe_aerial_ground', 0), batch_size)
             meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
             meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
             meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)

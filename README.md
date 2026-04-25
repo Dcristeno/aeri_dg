@@ -231,6 +231,27 @@ bash finetune.sh
 
 This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
 
+## AERI MoE adapter with k=2
+
+Run the clean triad baseline plus the AERI MoE adapter:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+USE_SWANLAB=1 \
+RUN_NAME='aeri_triad_k2_moe_w0p5' \
+SWANLAB_EXPERIMENT='aeri_triad_k2_moe_w0p5' \
+SEED=1 \
+LOSS_NAMES='triad+moe' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
+MOE_LOSS_WEIGHT=0.5 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+The MoE branch keeps the original CLS features as the backbone signal, then adds a small token-level MoE adapter residual for aerial, ground, and text features before applying auxiliary tri-modal SDM alignment.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

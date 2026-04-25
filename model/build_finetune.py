@@ -1,4 +1,5 @@
 from model import objectives
+from model.aeri_moe import AERIMoEAdapter
 from .clip_model import ResidualAttentionBlock, ResidualCrossAttentionBlock, Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
 import numpy as np
 import torch
@@ -21,6 +22,15 @@ class IRRA(nn.Module):
             self._load_aerial_prototypes()
         if 'track' in self.current_task:
             self._init_track_memory()
+        if 'moe' in self.current_task:
+            self.aeri_moe = AERIMoEAdapter(
+                dim=self.embed_dim,
+                num_experts=args.moe_num_experts,
+                top_k=args.moe_top_k,
+                reduction=args.moe_reduction,
+                pool_topk=args.moe_pool_topk,
+                residual_scale=args.moe_residual_scale,
+            )
 
         if 'fta' in args.loss_names:  
             self.fta_query_mode = getattr(args, "fta_query_mode", "static").lower()
@@ -295,6 +305,30 @@ class IRRA(nn.Module):
             ret.update({'triad_ground_text': weighted_ground_text_loss})
             ret.update({'triad_aerial_ground': weighted_aerial_ground_loss})
             ret.update({'triad_loss': weighted_aerial_text_loss + weighted_ground_text_loss + weighted_aerial_ground_loss})
+
+        if 'moe' in self.current_task:
+            if ground_image_feats is None:
+                raise ValueError("moe loss requires ground image features, but the current batch does not provide them.")
+            moe_aerial_feats, moe_ground_feats, moe_text_feats = self.aeri_moe(
+                image_feats,
+                ground_image_feats,
+                text_feats,
+                caption_ids,
+            )
+            moe_terms = objectives.compute_triad_sdm_terms(
+                moe_aerial_feats,
+                moe_ground_feats,
+                moe_text_feats,
+                batch['pids'],
+                logit_scale,
+            )
+            moe_aerial_text = moe_terms["triad_aerial_text"] * self.args.moe_aerial_text_weight
+            moe_ground_text = moe_terms["triad_ground_text"] * self.args.moe_ground_text_weight
+            moe_aerial_ground = moe_terms["triad_aerial_ground"] * self.args.moe_aerial_ground_weight
+            ret.update({'moe_aerial_text': moe_aerial_text})
+            ret.update({'moe_ground_text': moe_ground_text})
+            ret.update({'moe_aerial_ground': moe_aerial_ground})
+            ret.update({'moe_loss': (moe_aerial_text + moe_ground_text + moe_aerial_ground) * self.args.moe_loss_weight})
 
         if 'bridge' in self.current_task:
             if g_i_feats is None:
