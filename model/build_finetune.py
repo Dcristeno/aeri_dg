@@ -296,6 +296,15 @@ class IRRA(nn.Module):
             ret.update({'triad_aerial_ground': weighted_aerial_ground_loss})
             ret.update({'triad_loss': weighted_aerial_text_loss + weighted_ground_text_loss + weighted_aerial_ground_loss})
 
+        if 'joint' in self.current_task:
+            if g_i_feats is None:
+                raise ValueError("joint loss requires ground image features, but the current batch does not provide them.")
+            aerial_norm = F.normalize(i_feats, dim=-1)
+            ground_norm = F.normalize(g_i_feats, dim=-1)
+            joint_visual_feats = F.normalize(0.5 * (aerial_norm + ground_norm), dim=-1)
+            joint_text_loss = objectives.compute_sdm(joint_visual_feats, t_feats, batch['pids'], logit_scale)
+            ret.update({'joint_loss': joint_text_loss * self.args.joint_loss_weight})
+
         if 'bridge' in self.current_task:
             if g_i_feats is None:
                 raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")

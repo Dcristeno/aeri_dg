@@ -231,6 +231,27 @@ bash finetune.sh
 
 This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
 
+## AERI joint tri-modal loss
+
+Run the clean three-way joint visual-text objective on AERI:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+USE_SWANLAB=1 \
+RUN_NAME='aeri_joint_k2' \
+SWANLAB_EXPERIMENT='aeri_joint_k2' \
+SEED=1 \
+LOSS_NAMES='joint' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
+JOINT_LOSS_WEIGHT=1.0 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+This fuses aerial and ground CLS features into one normalized visual representation, then aligns that joint visual feature to text with SDM.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

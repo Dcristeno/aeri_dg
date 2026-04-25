@@ -45,6 +45,7 @@ def get_args():
     parser.add_argument("--triad_aerial_text_weight", type=float, default=1.0, help="weight for the plain aerial-text SDM term in the triad baseline")
     parser.add_argument("--triad_ground_text_weight", type=float, default=1.0, help="weight for the plain ground-text SDM term in the triad baseline")
     parser.add_argument("--triad_aerial_ground_weight", type=float, default=1.0, help="weight for the plain aerial-ground SDM term in the triad baseline")
+    parser.add_argument("--joint_loss_weight", type=float, default=1.0, help="weight for the fused aerial-ground visual to text SDM loss")
     parser.add_argument("--bridge_loss_weight", type=float, default=1.0, help="overall weight for the explicit ground-to-aerial bridge loss")
     parser.add_argument("--bridge_pair_weight", type=float, default=1.0, help="weight of the pair-level aerial-to-ground bridge term")
     parser.add_argument("--bridge_distill_weight", type=float, default=1.0, help="weight of the ground-to-text -> aerial-to-text relation distillation term")
