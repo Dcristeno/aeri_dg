@@ -25,7 +25,8 @@ def get_args():
     parser.add_argument("--pretrain_choice", default="ViT-B/16")
     parser.add_argument("--temperature", type=float, default=0.02)
     parser.add_argument("--img_aug", default=True, action="store_true")
-    parser.add_argument("--loss_names", default="base", help="only 'base' is supported in this branch")
+    parser.add_argument("--loss_names", default="base", help="training losses: base or base+id")
+    parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
@@ -63,6 +64,8 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--finetune_val_ratio", type=float, default=0.1)
     parser.add_argument("--finetune_val_seed", type=int, default=1)
+    parser.add_argument("--train_samples_per_id", type=int, default=0, help="if > 0, resample k training samples per identity each epoch")
+    parser.add_argument("--train_sample_strategy", type=str, default="random", help="per-id sampling strategy: random")
     parser.add_argument("--test", dest="training", default=True, action="store_false")
 
     return parser.parse_args()

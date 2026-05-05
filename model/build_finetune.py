@@ -8,8 +8,9 @@ from .clip_model import build_CLIP_from_openai_pretrained, convert_weights
 class IRRA(nn.Module):
     """Minimal AERI finetune baseline.
 
-    The only supported training objective is:
-        base = aerial-text SDM + ground-text SDM
+    Supported training objectives:
+        base    = aerial-text SDM + ground-text SDM
+        base+id = base + identity classification on aerial, ground, and text features
     """
 
     def __init__(self, args, num_classes=11003):
@@ -25,12 +26,18 @@ class IRRA(nn.Module):
         )
         self.embed_dim = base_cfg["embed_dim"]
         self.logit_scale = torch.ones([]) * (1 / args.temperature)
+        if "id" in self.current_task:
+            self.classifier = nn.Linear(self.embed_dim, self.num_classes)
+            nn.init.normal_(self.classifier.weight.data, std=0.001)
+            nn.init.constant_(self.classifier.bias.data, val=0.0)
 
     def _set_task(self):
         loss_names = self.args.loss_names
         self.current_task = [token.strip() for token in loss_names.split("+") if token.strip()]
-        if self.current_task != ["base"]:
-            raise ValueError("This baseline branch only supports LOSS_NAMES='base'.")
+        supported = {"base", "id"}
+        unknown = [token for token in self.current_task if token not in supported]
+        if unknown or "base" not in self.current_task:
+            raise ValueError("This branch supports LOSS_NAMES='base' or 'base+id'.")
         print(f"Training Model with {self.current_task} tasks")
 
     def encode_image(self, image):
@@ -74,10 +81,23 @@ class IRRA(nn.Module):
             + base_terms["base_ground_text"]
         )
 
-        return {
+        ret = {
             **base_terms,
             "base_loss": base_loss,
         }
+        if "id" in self.current_task:
+            labels = batch["pids"].long()
+            aerial_logits = self.classifier(aerial_feats.half()).float()
+            ground_logits = self.classifier(ground_feats.half()).float()
+            text_logits = self.classifier(text_feats.half()).float()
+            id_loss = (
+                nn.functional.cross_entropy(aerial_logits, labels)
+                + nn.functional.cross_entropy(ground_logits, labels)
+                + nn.functional.cross_entropy(text_logits, labels)
+            ) / 3.0
+            ret["id_loss"] = id_loss * self.args.id_loss_weight
+
+        return ret
 
 
 def build_finetune_model(args, num_classes=11003):

@@ -2,6 +2,7 @@ import logging
 import time
 
 import torch
+from datasets.build import build_finetune_train_loader
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.comm import get_rank
@@ -25,6 +26,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "base_loss": AverageMeter(),
         "base_aerial_text": AverageMeter(),
         "base_ground_text": AverageMeter(),
+        "id_loss": AverageMeter(),
     }
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
@@ -37,18 +39,27 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meter.reset()
         model.train()
 
+        if getattr(args, "train_samples_per_id", 0) > 0:
+            train_loader = build_finetune_train_loader(args, trainset, epoch=epoch)
+            logger.info(
+                f"Epoch[{epoch}] rebuilt train loader with per-id sampling: "
+                f"strategy={args.train_sample_strategy}, k={args.train_samples_per_id}, "
+                f"samples={len(train_loader.dataset)}"
+            )
+
         for n_iter, batch in enumerate(train_loader):
             batch = {key: value.cuda() for key, value in batch.items()}
 
             ret = model(batch)
             ret = {key: value.mean() for key, value in ret.items()}
-            total_loss = ret["base_loss"]
+            total_loss = sum(value for key, value in ret.items() if key.endswith("_loss"))
             batch_size = batch["images"].shape[0]
 
             meters["loss"].update(total_loss.item(), batch_size)
             meters["base_loss"].update(ret["base_loss"], batch_size)
             meters["base_aerial_text"].update(ret["base_aerial_text"], batch_size)
             meters["base_ground_text"].update(ret["base_ground_text"], batch_size)
+            meters["id_loss"].update(ret.get("id_loss", 0), batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()

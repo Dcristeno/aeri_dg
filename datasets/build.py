@@ -74,6 +74,45 @@ def _build_eval_loaders(args, split, transforms, num_workers):
     return img_loader, txt_loader
 
 
+def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None, strategy="random"):
+    if samples_per_id <= 0:
+        return dataset
+    if strategy != "random":
+        raise ValueError(f"Unsupported train sampling strategy: {strategy}")
+
+    pid_to_samples = {}
+    for sample in dataset:
+        pid_to_samples.setdefault(sample[0], []).append(sample)
+
+    rng = random.Random(epoch_seed) if epoch_seed is not None else random
+    sampled_dataset = []
+    for pid in sorted(pid_to_samples.keys()):
+        pid_samples = pid_to_samples[pid]
+        if len(pid_samples) >= samples_per_id:
+            sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
+        else:
+            sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
+    return sampled_dataset
+
+
+def build_finetune_train_loader(args, train_dataset, epoch=None):
+    train_transforms = build_transforms(img_size=args.img_size, aug=args.img_aug, is_train=True)
+    sampled_dataset = sample_train_dataset_per_pid(
+        train_dataset,
+        args.train_samples_per_id,
+        epoch_seed=epoch,
+        strategy=args.train_sample_strategy,
+    )
+    train_set = ImageTextMLMDataset(sampled_dataset, train_transforms, text_length=args.text_length)
+    return DataLoader(
+        train_set,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+    )
+
+
 def build_dataloader(args, tranforms=None):
     dataset = __factory[args.dataset_name](root=args.root_dir)
     num_classes = len(dataset.train_id_container)
@@ -135,15 +174,22 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         val_img_loader, val_txt_loader = _build_eval_loaders(args, dataset.test, eval_transforms, num_workers)
 
-    train_set = ImageTextMLMDataset(train_dataset, train_transforms, text_length=args.text_length)
-    train_loader = DataLoader(
-        train_set,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        collate_fn=collate,
-    )
-    logger.info("using full training split with random shuffle")
+    if getattr(args, "train_samples_per_id", 0) > 0:
+        train_loader = build_finetune_train_loader(args, train_dataset, epoch=1)
+        logger.info(
+            f"using per-id epoch sampling: strategy={args.train_sample_strategy}, "
+            f"k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
+        )
+    else:
+        train_set = ImageTextMLMDataset(train_dataset, train_transforms, text_length=args.text_length)
+        train_loader = DataLoader(
+            train_set,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            collate_fn=collate,
+        )
+        logger.info("using full training split with random shuffle")
 
     num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
     return train_dataset, train_loader, val_img_loader, val_txt_loader, num_classes

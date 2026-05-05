@@ -1,6 +1,12 @@
-# AERI Baseline
+# AERI K=2 SDM+ID
 
-This branch is a minimal AERI-PEDES baseline. It removes the previous experimental modules and keeps only the plain aerial-ground-text training framework.
+This branch starts from the minimal AERI-PEDES dual-view text baseline and adds the next confirmed experiment:
+
+```text
+base SDM
++ ID loss
++ random per-ID k=2 training sampling
+```
 
 ## Environment
 
@@ -26,17 +32,22 @@ TorchVision 0.15.0
 SwanLab 0.7.15
 ```
 
-## Baseline Objective
+## Objective
 
-`LOSS_NAMES=base` is the only supported training objective:
+The default training objective is `LOSS_NAMES=base+id`:
 
 ```text
 base_loss =
   SDM(aerial, text)
 + SDM(ground, text)
+
+id_loss =
+  CE(aerial_pid)
++ CE(ground_pid)
++ CE(text_pid)
 ```
 
-No CDA, FTA, bridge, prototype, track memory, MoE, joint loss, k=2 sampling, heuristic sampling, or tile mixing is included.
+The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SAMPLES_PER_ID=2`, randomly choosing two samples per identity before shuffling.
 
 ## Train
 
@@ -44,8 +55,8 @@ No CDA, FTA, bridge, prototype, track memory, MoE, joint loss, k=2 sampling, heu
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_base_fullsample' \
-SWANLAB_EXPERIMENT='aeri_base_fullsample' \
+RUN_NAME='aeri_k2_sdm_id' \
+SWANLAB_EXPERIMENT='aeri_k2_sdm_id' \
 SEED=1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
@@ -54,6 +65,15 @@ bash finetune.sh
 On the default server setup, this is equivalent to:
 
 ```bash
+bash finetune.sh
+```
+
+Useful overrides:
+
+```bash
+LOSS_NAMES=base \
+TRAIN_SAMPLES_PER_ID=0 \
+RUN_NAME='aeri_base_fullsample' \
 bash finetune.sh
 ```
 

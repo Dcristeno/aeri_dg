@@ -5,13 +5,17 @@ DATASET_NAME="${DATASET_NAME:-AERI-PEDES}"
 DATA_ROOT="${DATA_ROOT:-/home/wuyong/datasets}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
-RUN_NAME="${RUN_NAME:-aeri_trimodal_irra_baseline}"
+RUN_NAME="${RUN_NAME:-aeri_k2_sdm_id}"
 SEED="${SEED:-1}"
 FINETUNE_EVAL_MODE="${FINETUNE_EVAL_MODE:-test}"
 USE_SWANLAB="${USE_SWANLAB:-1}"
 SWANLAB_PROJECT="${SWANLAB_PROJECT:-CFAN}"
 SWANLAB_EXPERIMENT="${SWANLAB_EXPERIMENT:-${RUN_NAME}}"
 SWANLAB_MODE="${SWANLAB_MODE:-cloud}"
+LOSS_NAMES="${LOSS_NAMES:-base+id}"
+ID_LOSS_WEIGHT="${ID_LOSS_WEIGHT:-1.0}"
+TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-2}"
+TRAIN_SAMPLE_STRATEGY="${TRAIN_SAMPLE_STRATEGY:-random}"
 
 args=(
   --name "${RUN_NAME}"
@@ -21,7 +25,10 @@ args=(
   --batch_size 64
   --MLM
   --dataset_name "${DATASET_NAME}"
-  --loss_names base
+  --loss_names "${LOSS_NAMES}"
+  --id_loss_weight "${ID_LOSS_WEIGHT}"
+  --train_samples_per_id "${TRAIN_SAMPLES_PER_ID}"
+  --train_sample_strategy "${TRAIN_SAMPLE_STRATEGY}"
   --lr 5e-6
   --lr2 5e-5
   --num_epoch 60
