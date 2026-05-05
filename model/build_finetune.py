@@ -94,7 +94,7 @@ class IRRA(nn.Module):
             need_weights=False,
         )[0]
         x = x.permute(1, 0, 2)
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(x, modal=None)
         x = x.permute(1, 0, 2)
         return self.ln_post(x)
 
