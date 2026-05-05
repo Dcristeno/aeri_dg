@@ -95,6 +95,15 @@ def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None, strat
     return sampled_dataset
 
 
+def relabel_train_dataset_pids(dataset):
+    pids = sorted({sample[0] for sample in dataset})
+    pid_to_label = {pid: label for label, pid in enumerate(pids)}
+    relabeled = []
+    for sample in dataset:
+        relabeled.append((pid_to_label[sample[0]], *sample[1:]))
+    return relabeled, pid_to_label
+
+
 def build_finetune_train_loader(args, train_dataset, epoch=None):
     train_transforms = build_transforms(img_size=args.img_size, aug=args.img_aug, is_train=True)
     sampled_dataset = sample_train_dataset_per_pid(
@@ -174,6 +183,12 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         val_img_loader, val_txt_loader = _build_eval_loaders(args, dataset.test, eval_transforms, num_workers)
 
+    train_dataset, train_pid_to_label = relabel_train_dataset_pids(train_dataset)
+    logger.info(
+        f"using contiguous finetune training labels: classes={len(train_pid_to_label)}, "
+        f"raw_pid_min={min(train_pid_to_label)}, raw_pid_max={max(train_pid_to_label)}"
+    )
+
     if getattr(args, "train_samples_per_id", 0) > 0:
         train_loader = build_finetune_train_loader(args, train_dataset, epoch=1)
         logger.info(
@@ -191,7 +206,7 @@ def build_zero_shot_loader(args, finetune=False):
         )
         logger.info("using full training split with random shuffle")
 
-    num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
+    num_classes = len(train_pid_to_label)
     return train_dataset, train_loader, val_img_loader, val_txt_loader, num_classes
 
 
