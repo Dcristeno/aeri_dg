@@ -87,9 +87,10 @@ class IRRA(nn.Module):
         }
         if "id" in self.current_task:
             labels = batch["pids"].long()
-            aerial_logits = self.classifier(aerial_feats.half()).float()
-            ground_logits = self.classifier(ground_feats.half()).float()
-            text_logits = self.classifier(text_feats.half()).float()
+            classifier_dtype = self.classifier.weight.dtype
+            aerial_logits = self.classifier(aerial_feats.to(classifier_dtype)).float()
+            ground_logits = self.classifier(ground_feats.to(classifier_dtype)).float()
+            text_logits = self.classifier(text_feats.to(classifier_dtype)).float()
             id_loss = (
                 nn.functional.cross_entropy(aerial_logits, labels)
                 + nn.functional.cross_entropy(ground_logits, labels)
