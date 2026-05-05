@@ -1,10 +1,11 @@
-# AERI K=2 SDM+ID
+# AERI K=2 SDM+ID+MLM
 
-This branch starts from the minimal AERI-PEDES dual-view text baseline and adds the next confirmed experiment:
+This branch starts from the `aeri-k2-sdm-id` experiment and adds masked language modeling:
 
 ```text
 base SDM
 + ID loss
++ MLM loss
 + random per-ID k=2 training sampling
 ```
 
@@ -34,7 +35,7 @@ SwanLab 0.7.15
 
 ## Objective
 
-The default training objective is `LOSS_NAMES=base+id`:
+The default training objective is `LOSS_NAMES=base+id+mlm`:
 
 ```text
 base_loss =
@@ -45,9 +46,14 @@ id_loss =
   CE(aerial_pid)
 + CE(ground_pid)
 + CE(text_pid)
+
+mlm_loss =
+  CE(masked_tokens | aerial_tokens)
 ```
 
 The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SAMPLES_PER_ID=2`, randomly choosing two samples per identity before shuffling.
+The default ID weight is `ID_LOSS_WEIGHT=0.5`, matching the stronger setting from the previous ID-weight sweep.
+The default MLM weight is `MLM_LOSS_WEIGHT=2.0`, giving the language reconstruction task a stronger role in this branch.
 
 ## Train
 
@@ -55,8 +61,8 @@ The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SA
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_k2_sdm_id' \
-SWANLAB_EXPERIMENT='aeri_k2_sdm_id' \
+RUN_NAME='aeri_k2_sdm_id_mlm' \
+SWANLAB_EXPERIMENT='aeri_k2_sdm_id_mlm' \
 SEED=1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh

@@ -29,3 +29,7 @@ def compute_aeri_base_sdm_terms(aerial_features, ground_features, text_features,
         "base_aerial_text": compute_sdm(aerial_features, text_features, pid, logit_scale),
         "base_ground_text": compute_sdm(ground_features, text_features, pid, logit_scale),
     }
+
+
+def compute_mlm(scores, labels):
+    return F.cross_entropy(scores, labels, ignore_index=0)

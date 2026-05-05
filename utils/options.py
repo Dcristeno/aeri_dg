@@ -25,14 +25,16 @@ def get_args():
     parser.add_argument("--pretrain_choice", default="ViT-B/16")
     parser.add_argument("--temperature", type=float, default=0.02)
     parser.add_argument("--img_aug", default=True, action="store_true")
-    parser.add_argument("--loss_names", default="base", help="training losses: base or base+id")
+    parser.add_argument("--loss_names", default="base", help="training losses: base, base+id, or base+id+mlm")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
+    parser.add_argument("--mlm_loss_weight", type=float, default=1.0, help="weight for masked language modeling loss")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
     parser.add_argument("--stride_size", type=int, default=16)
     parser.add_argument("--text_length", type=int, default=77)
     parser.add_argument("--vocab_size", type=int, default=49408)
+    parser.add_argument("--cmt_depth", type=int, default=4, help="cross-modal transformer depth for MLM")
 
     parser.add_argument("--optimizer", type=str, default="Adam", help="SGD, Adam, or AdamW")
     parser.add_argument("--lr", type=float, default=5e-6)

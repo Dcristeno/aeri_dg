@@ -27,6 +27,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "base_aerial_text": AverageMeter(),
         "base_ground_text": AverageMeter(),
         "id_loss": AverageMeter(),
+        "mlm_loss": AverageMeter(),
+        "mlm_acc": AverageMeter(),
     }
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
@@ -60,6 +62,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters["base_aerial_text"].update(ret["base_aerial_text"], batch_size)
             meters["base_ground_text"].update(ret["base_ground_text"], batch_size)
             meters["id_loss"].update(ret.get("id_loss", 0), batch_size)
+            meters["mlm_loss"].update(ret.get("mlm_loss", 0), batch_size)
+            meters["mlm_acc"].update(ret.get("mlm_acc", 0), batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()
