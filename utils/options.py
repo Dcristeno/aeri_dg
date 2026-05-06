@@ -25,8 +25,9 @@ def get_args():
     parser.add_argument("--pretrain_choice", default="ViT-B/16")
     parser.add_argument("--temperature", type=float, default=0.02)
     parser.add_argument("--img_aug", default=True, action="store_true")
-    parser.add_argument("--loss_names", default="base", help="training losses: base or base+id")
+    parser.add_argument("--loss_names", default="base", help="training losses: base, base+id, or base+id+bridge")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
+    parser.add_argument("--bridge_loss_weight", type=float, default=0.5, help="weight for detached ground-to-aerial bridge loss")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

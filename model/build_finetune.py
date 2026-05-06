@@ -11,6 +11,7 @@ class IRRA(nn.Module):
     Supported training objectives:
         base    = aerial-text SDM + ground-text SDM
         base+id = base + identity classification on aerial, ground, and text features
+        bridge  = detached ground-view teacher alignment for aerial features
     """
 
     def __init__(self, args, num_classes=11003):
@@ -34,10 +35,10 @@ class IRRA(nn.Module):
     def _set_task(self):
         loss_names = self.args.loss_names
         self.current_task = [token.strip() for token in loss_names.split("+") if token.strip()]
-        supported = {"base", "id"}
+        supported = {"base", "id", "bridge"}
         unknown = [token for token in self.current_task if token not in supported]
         if unknown or "base" not in self.current_task:
-            raise ValueError("This branch supports LOSS_NAMES='base' or 'base+id'.")
+            raise ValueError("This branch supports LOSS_NAMES='base', 'base+id', or 'base+id+bridge'.")
         print(f"Training Model with {self.current_task} tasks")
 
     def encode_image(self, image):
@@ -85,6 +86,14 @@ class IRRA(nn.Module):
             **base_terms,
             "base_loss": base_loss,
         }
+        if "bridge" in self.current_task:
+            bridge_loss = 1.0 - nn.functional.cosine_similarity(
+                aerial_feats,
+                ground_feats.detach(),
+                dim=-1,
+            ).mean()
+            ret["bridge_loss"] = bridge_loss * self.args.bridge_loss_weight
+
         if "id" in self.current_task:
             labels = batch["pids"].long()
             classifier_dtype = self.classifier.weight.dtype
