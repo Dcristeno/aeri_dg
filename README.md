@@ -1,10 +1,12 @@
-# AERI K=2 SDM+ID
+# AERI K=2 Representation Adapter
 
-This branch starts from the minimal AERI-PEDES dual-view text baseline and adds the next confirmed experiment:
+This branch starts from the `aeri-k2-sdm-id` experiment and adds a lightweight MMRL-inspired representation adapter:
 
 ```text
 base SDM
 + ID loss
++ residual representation adapters
++ cosine regularization to the raw CLIP feature space
 + random per-ID k=2 training sampling
 ```
 
@@ -45,9 +47,17 @@ id_loss =
   CE(aerial_pid)
 + CE(ground_pid)
 + CE(text_pid)
+
+adapted_feature =
+  REP_ALPHA * raw_clip_feature
++ (1 - REP_ALPHA) * adapter(raw_clip_feature)
+
+rep_reg_loss =
+  cosine regularization between adapted_feature and raw_clip_feature.detach()
 ```
 
 The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SAMPLES_PER_ID=2`, randomly choosing two samples per identity before shuffling.
+The default adapter settings are `REP_ALPHA=0.7`, `REP_REG_WEIGHT=0.5`, and `ID_LOSS_WEIGHT=0.5`.
 
 ## Train
 
@@ -55,8 +65,8 @@ The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SA
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_k2_sdm_id' \
-SWANLAB_EXPERIMENT='aeri_k2_sdm_id' \
+RUN_NAME='aeri_k2_rep_adapter' \
+SWANLAB_EXPERIMENT='aeri_k2_rep_adapter' \
 SEED=1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh

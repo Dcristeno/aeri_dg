@@ -27,6 +27,9 @@ def get_args():
     parser.add_argument("--img_aug", default=True, action="store_true")
     parser.add_argument("--loss_names", default="base", help="training losses: base or base+id")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
+    parser.add_argument("--rep_alpha", type=float, default=0.7, help="weight of raw CLIP feature in representation adapter fusion")
+    parser.add_argument("--rep_reg_weight", type=float, default=0.5, help="cosine regularization weight for adapted retrieval features")
+    parser.add_argument("--rep_hidden_dim", type=int, default=1024, help="hidden dimension of the residual representation adapters")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
