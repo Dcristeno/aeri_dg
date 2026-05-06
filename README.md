@@ -1,10 +1,10 @@
-# AERI K=2 SDM+ID
+# AERI K=2 Route ID
 
-This branch starts from the minimal AERI-PEDES dual-view text baseline and adds the next confirmed experiment:
+This branch starts from the `aeri-k2-sdm-id` experiment and separates the retrieval and ID auxiliary routes:
 
 ```text
 base SDM
-+ ID loss
++ ID loss through a separate ID projection route
 + random per-ID k=2 training sampling
 ```
 
@@ -42,12 +42,15 @@ base_loss =
 + SDM(ground, text)
 
 id_loss =
-  CE(aerial_pid)
-+ CE(ground_pid)
-+ CE(text_pid)
+  CE(id_proj(aerial)_pid)
++ CE(id_proj(ground)_pid)
++ CE(id_proj(text)_pid)
 ```
 
+The SDM loss and test-time embeddings use `retrieval_proj`, while ID classification uses `id_proj -> classifier`.
+Both projection heads are identity-initialized, so the model starts from the original feature space and can learn route-specific adjustments.
 The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SAMPLES_PER_ID=2`, randomly choosing two samples per identity before shuffling.
+The default ID weight is `ID_LOSS_WEIGHT=0.5`.
 
 ## Train
 
@@ -55,8 +58,8 @@ The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SA
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_k2_sdm_id' \
-SWANLAB_EXPERIMENT='aeri_k2_sdm_id' \
+RUN_NAME='aeri_k2_route_id' \
+SWANLAB_EXPERIMENT='aeri_k2_route_id' \
 SEED=1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh

@@ -26,7 +26,11 @@ class IRRA(nn.Module):
         )
         self.embed_dim = base_cfg["embed_dim"]
         self.logit_scale = torch.ones([]) * (1 / args.temperature)
+        self.retrieval_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
+        nn.init.eye_(self.retrieval_proj.weight)
         if "id" in self.current_task:
+            self.id_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
+            nn.init.eye_(self.id_proj.weight)
             self.classifier = nn.Linear(self.embed_dim, self.num_classes)
             nn.init.normal_(self.classifier.weight.data, std=0.001)
             nn.init.constant_(self.classifier.bias.data, val=0.0)
@@ -42,11 +46,13 @@ class IRRA(nn.Module):
 
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
-        return image_feats[:, 0, :].float()
+        cls_feats = image_feats[:, 0, :]
+        return self.retrieval_proj(cls_feats.to(self.retrieval_proj.weight.dtype)).float()
 
     def encode_text(self, text):
         text_feats = self.base_model.encode_text(text.long())
-        return text_feats[torch.arange(text_feats.shape[0]), text.argmax(dim=-1)].float()
+        cls_feats = text_feats[torch.arange(text_feats.shape[0]), text.argmax(dim=-1)]
+        return self.retrieval_proj(cls_feats.to(self.retrieval_proj.weight.dtype)).float()
 
     def forward(self, batch):
         images = batch["images"]
@@ -62,12 +68,16 @@ class IRRA(nn.Module):
                 caption_ids,
             )
 
-        aerial_feats = image_feats[:, 0, :].float()
-        ground_feats = ground_image_feats[:, 0, :].float()
-        text_feats = text_feats[
+        aerial_raw_feats = image_feats[:, 0, :].float()
+        ground_raw_feats = ground_image_feats[:, 0, :].float()
+        text_raw_feats = text_feats[
             torch.arange(text_feats.shape[0], device=text_feats.device),
             caption_ids.argmax(dim=-1),
         ].float()
+        retrieval_dtype = self.retrieval_proj.weight.dtype
+        aerial_feats = self.retrieval_proj(aerial_raw_feats.to(retrieval_dtype)).float()
+        ground_feats = self.retrieval_proj(ground_raw_feats.to(retrieval_dtype)).float()
+        text_feats = self.retrieval_proj(text_raw_feats.to(retrieval_dtype)).float()
 
         base_terms = objectives.compute_aeri_base_sdm_terms(
             aerial_feats,
@@ -87,10 +97,14 @@ class IRRA(nn.Module):
         }
         if "id" in self.current_task:
             labels = batch["pids"].long()
+            id_dtype = self.id_proj.weight.dtype
             classifier_dtype = self.classifier.weight.dtype
-            aerial_logits = self.classifier(aerial_feats.to(classifier_dtype)).float()
-            ground_logits = self.classifier(ground_feats.to(classifier_dtype)).float()
-            text_logits = self.classifier(text_feats.to(classifier_dtype)).float()
+            aerial_id_feats = self.id_proj(aerial_raw_feats.to(id_dtype))
+            ground_id_feats = self.id_proj(ground_raw_feats.to(id_dtype))
+            text_id_feats = self.id_proj(text_raw_feats.to(id_dtype))
+            aerial_logits = self.classifier(aerial_id_feats.to(classifier_dtype)).float()
+            ground_logits = self.classifier(ground_id_feats.to(classifier_dtype)).float()
+            text_logits = self.classifier(text_id_feats.to(classifier_dtype)).float()
             id_loss = (
                 nn.functional.cross_entropy(aerial_logits, labels)
                 + nn.functional.cross_entropy(ground_logits, labels)
