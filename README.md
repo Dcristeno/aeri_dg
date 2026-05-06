@@ -91,3 +91,22 @@ python test.py \
   --checkpoint logs/AERI-PEDES/<run_dir>/best0.pth \
   --root_dir /home/wuyong/datasets
 ```
+
+## Checkpoint Merge
+
+To test whether two trained runs complement each other, linearly merge their checkpoints and evaluate the merged model:
+
+```bash
+python merge_checkpoints.py \
+  --base logs/AERI-PEDES/<id_w05_run>/best0.pth \
+  --other logs/AERI-PEDES/<mlm_w2_run>/best0.pth \
+  --alpha 0.3 \
+  --output logs/merged/id_w05_mlm_w2_alpha03.pth
+
+python test.py \
+  --config_file logs/AERI-PEDES/<mlm_w2_run>/configs.yaml \
+  --checkpoint logs/merged/id_w05_mlm_w2_alpha03.pth \
+  --root_dir /home/wuyong/datasets
+```
+
+Start with `alpha` in `0.1 0.2 0.3 0.4 0.5`. The base checkpoint defines the output structure; parameters that are missing or have different shapes in the other checkpoint are kept from the base checkpoint.
