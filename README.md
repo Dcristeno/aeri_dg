@@ -231,6 +231,25 @@ bash finetune.sh
 
 This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
 
+## Adaptive Checkpoint Merge
+
+`adaptive_merge_checkpoints.py` is an AdaMMS-style helper for merging two checkpoints without labels. It linearly merges matching floating-point parameters, keeps unmatched parameters from the base checkpoint, then chooses the merge coefficient whose retrieval top-k lists are most consistent with neighboring coefficients.
+
+```bash
+DATA_ROOT=/home/wuyong/datasets
+
+python adaptive_merge_checkpoints.py \
+  --config_file logs/AERI-PEDES/<base_run>/configs.yaml \
+  --base_checkpoint logs/AERI-PEDES/<base_run>/best0.pth \
+  --other_checkpoint logs/AERI-PEDES/<other_run>/best0.pth \
+  --output_dir logs/merged_adaptive/aeri_adaptive_merge \
+  --root_dir ${DATA_ROOT} \
+  --alphas 0 0.1 0.2 0.3 0.4 0.5 \
+  --topk 10
+```
+
+The selected checkpoint is saved as `best_adaptive_merge.pth`, and the alpha scores are saved to `adaptive_merge_scores.json`. For a quick coefficient search, add small subset limits such as `--max_text_batches 8 --max_image_batches 8`; for final selection, use the full test split.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.
