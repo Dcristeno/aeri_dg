@@ -231,6 +231,23 @@ bash finetune.sh
 
 This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
 
+To try CVPR-style progressive top-k patch refinement, add a `cvpr` loss:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda+fta+cvpr' \
+TRAIN_SAMPLES_PER_ID=2 \
+CVPR_TOPK=16 \
+CVPR_NUM_STAGES=3 \
+CVPR_MOMENTUM=0.7 \
+CVPR_LOSS_WEIGHT=1.0 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+The CVPR branch uses the current image CLS/text features as a query context, repeatedly selects the top-k aerial visual patch tokens, refines the query and selected patches, then applies an extra SDM loss between the refined aerial feature and text feature. Existing `cda`, `fta`, `bridge`, `proto`, and `track` paths are unchanged unless `cvpr` is added to `LOSS_NAMES`.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

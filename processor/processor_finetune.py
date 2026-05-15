@@ -42,6 +42,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "track_loss": AverageMeter(),
         "track_image_loss": AverageMeter(),
         "track_text_loss": AverageMeter(),
+        "cvpr_loss": AverageMeter(),
         "fta_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
@@ -90,6 +91,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['track_loss'].update(ret.get('track_loss', 0), batch_size)
             meters['track_image_loss'].update(ret.get('track_image_loss', 0), batch_size)
             meters['track_text_loss'].update(ret.get('track_text_loss', 0), batch_size)
+            meters['cvpr_loss'].update(ret.get('cvpr_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
 
             optimizer.zero_grad()

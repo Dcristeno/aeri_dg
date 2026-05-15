@@ -31,6 +31,8 @@ def build_optimizer(args, model):
             lr =  args.lr * args.lr_factor # default 5.0
             # lr = args.lr2
             # lr = args.lr2 * args.lr_factor
+        if "cvpr" in key:
+            lr = args.lr2 * args.lr_factor
         
         params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
 

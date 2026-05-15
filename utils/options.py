@@ -33,6 +33,10 @@ def get_args():
     parser.add_argument("--fta_num_query", type=int, default=4, help="number of learned query slots used by FTA")
     parser.add_argument("--fta_query_mode", type=str, default="static", help="FTA query mode: static or conditioned")
     parser.add_argument("--fta_query_condition_scale", type=float, default=1.0, help="scale applied to the instance-conditioned FTA query deltas")
+    parser.add_argument("--cvpr_num_query", type=int, default=1, help="number of learned query slots used by CVPR patch refinement")
+    parser.add_argument("--cvpr_topk", type=int, default=16, help="number of visual patches selected at each CVPR refinement stage")
+    parser.add_argument("--cvpr_num_stages", type=int, default=3, help="number of progressive CVPR top-k refinement stages")
+    parser.add_argument("--cvpr_momentum", type=float, default=0.7, help="momentum used when updating CVPR query and selected patches")
     parser.add_argument("--masked_token_rate", type=float, default=0.8, help="masked token rate for mlm task")
     parser.add_argument("--masked_token_unchanged_rate", type=float, default=0.1, help="masked token unchanged rate")
     parser.add_argument("--lr_factor", type=float, default=5.0, help="lr factor for random init self implement module")
@@ -52,6 +56,7 @@ def get_args():
     parser.add_argument("--track_memory_image_weight", type=float, default=1.0, help="weight for aligning sampled aerial features to their online track memory")
     parser.add_argument("--track_memory_text_weight", type=float, default=1.0, help="weight for aligning text features to their online track memory")
     parser.add_argument("--track_memory_momentum", type=float, default=0.8, help="EMA momentum used to update each pid track memory")
+    parser.add_argument("--cvpr_loss_weight", type=float, default=1.0, help="weight for the CVPR refined image-text SDM loss")
     
     ######################## vison trainsformer settings ########################
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

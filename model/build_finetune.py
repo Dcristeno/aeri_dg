@@ -21,6 +21,8 @@ class IRRA(nn.Module):
             self._load_aerial_prototypes()
         if 'track' in self.current_task:
             self._init_track_memory()
+        if 'cvpr' in self.current_task:
+            self._init_cvpr()
 
         if 'fta' in args.loss_names:  
             self.fta_query_mode = getattr(args, "fta_query_mode", "static").lower()
@@ -88,6 +90,45 @@ class IRRA(nn.Module):
                 nn.init.normal_(self.visual_query_condition[3].weight, std=proj_std)
                 nn.init.normal_(self.text_query_condition[1].weight, std=fc_std)
                 nn.init.normal_(self.text_query_condition[3].weight, std=proj_std)
+
+    def _init_cvpr(self):
+        self.cvpr_num_query = int(getattr(self.args, "cvpr_num_query", 1))
+        if self.cvpr_num_query <= 0:
+            raise ValueError("cvpr_num_query must be positive.")
+
+        num_heads = self.embed_dim // 64
+        self.cvpr_query = nn.Parameter(torch.randn(self.cvpr_num_query, self.embed_dim))
+        self.cvpr_self_attn = nn.MultiheadAttention(self.embed_dim, num_heads, batch_first=True)
+        self.cvpr_cross_attn = nn.MultiheadAttention(self.embed_dim, num_heads, batch_first=True)
+        self.cvpr_patch_attn = nn.MultiheadAttention(self.embed_dim, num_heads, batch_first=True)
+        self.cvpr_query_norm = LayerNorm(self.embed_dim)
+        self.cvpr_patch_norm = LayerNorm(self.embed_dim)
+        self.cvpr_ffn_norm = LayerNorm(self.embed_dim)
+        self.cvpr_ffn = nn.Sequential(
+            nn.Linear(self.embed_dim, self.embed_dim * 4),
+            QuickGELU(),
+            nn.Linear(self.embed_dim * 4, self.embed_dim),
+        )
+        self.cvpr_fusion = nn.Sequential(
+            LayerNorm(self.embed_dim * 3),
+            nn.Linear(self.embed_dim * 3, self.embed_dim),
+            QuickGELU(),
+            LayerNorm(self.embed_dim),
+        )
+
+        scale = self.embed_dim ** -0.5
+        proj_std = scale * (2 ** -0.5)
+        fc_std = (2 * self.embed_dim) ** -0.5
+        nn.init.normal_(self.cvpr_query, std=scale)
+        nn.init.normal_(self.cvpr_self_attn.in_proj_weight, std=scale)
+        nn.init.normal_(self.cvpr_self_attn.out_proj.weight, std=proj_std)
+        nn.init.normal_(self.cvpr_cross_attn.in_proj_weight, std=scale)
+        nn.init.normal_(self.cvpr_cross_attn.out_proj.weight, std=proj_std)
+        nn.init.normal_(self.cvpr_patch_attn.in_proj_weight, std=scale)
+        nn.init.normal_(self.cvpr_patch_attn.out_proj.weight, std=proj_std)
+        nn.init.normal_(self.cvpr_ffn[0].weight, std=fc_std)
+        nn.init.normal_(self.cvpr_ffn[2].weight, std=proj_std)
+        nn.init.normal_(self.cvpr_fusion[1].weight, std=proj_std)
 
     def _set_task(self):
         loss_names = self.args.loss_names
@@ -206,6 +247,70 @@ class IRRA(nn.Module):
         text_query = base_query + condition_scale * text_delta
         return visual_query, text_query
 
+    def _gather_topk_patches(self, patches, scores, topk):
+        topk_indices = scores.topk(topk, dim=1).indices
+        gather_indices = topk_indices.unsqueeze(-1).expand(-1, -1, patches.shape[-1])
+        return torch.gather(patches, dim=1, index=gather_indices), topk_indices
+
+    def compute_cvpr_feature(self, image_tokens, image_cls_feats, text_cls_feats):
+        patches = image_tokens[:, 1:, :].float()
+        if patches.shape[1] == 0:
+            return image_cls_feats
+
+        batch_size = image_cls_feats.shape[0]
+        topk = min(int(getattr(self.args, "cvpr_topk", 16)), patches.shape[1])
+        num_stages = max(int(getattr(self.args, "cvpr_num_stages", 3)), 1)
+        momentum = float(getattr(self.args, "cvpr_momentum", 0.7))
+        momentum = min(max(momentum, 0.0), 1.0)
+
+        base_query = self.cvpr_query.unsqueeze(0).expand(batch_size, -1, -1)
+        query_context = (image_cls_feats + text_cls_feats).unsqueeze(1)
+        query = base_query + query_context
+
+        for _ in range(num_stages):
+            score_query = F.normalize(query.mean(dim=1), dim=-1)
+            score_patches = F.normalize(patches, dim=-1)
+            patch_scores = torch.einsum("bd,bld->bl", score_query, score_patches)
+            selected_patches, selected_indices = self._gather_topk_patches(patches, patch_scores, topk)
+
+            self_context = self.cvpr_self_attn(
+                self.cvpr_query_norm(query),
+                self.cvpr_query_norm(query),
+                self.cvpr_query_norm(query),
+                need_weights=False,
+            )[0]
+            cross_context = self.cvpr_cross_attn(
+                self.cvpr_query_norm(query + self_context),
+                self.cvpr_patch_norm(selected_patches),
+                self.cvpr_patch_norm(selected_patches),
+                need_weights=False,
+            )[0]
+            refined_query = query + self_context + cross_context
+            refined_query = refined_query + self.cvpr_ffn(self.cvpr_ffn_norm(refined_query))
+
+            refined_patches = selected_patches + self.cvpr_patch_attn(
+                self.cvpr_patch_norm(selected_patches),
+                self.cvpr_query_norm(refined_query),
+                self.cvpr_query_norm(refined_query),
+                need_weights=False,
+            )[0]
+
+            query = momentum * refined_query + (1.0 - momentum) * query
+            updated_patches = momentum * refined_patches + (1.0 - momentum) * selected_patches
+            patch_indices = selected_indices.unsqueeze(-1).expand_as(updated_patches)
+            patches = patches.scatter(dim=1, index=patch_indices, src=updated_patches)
+
+        final_query = query.mean(dim=1)
+        local_scores = torch.einsum(
+            "bd,bld->bl",
+            F.normalize(final_query, dim=-1),
+            F.normalize(patches, dim=-1),
+        )
+        local_weights = F.softmax(local_scores, dim=1).unsqueeze(-1)
+        local_feat = torch.sum(local_weights * patches, dim=1)
+        cvpr_feat = self.cvpr_fusion(torch.cat([image_cls_feats, final_query, local_feat], dim=1))
+        return cvpr_feat
+
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
         return image_feats[:, 0, :].float()
@@ -314,6 +419,17 @@ class IRRA(nn.Module):
             ret.update({'track_loss': weighted_track_image_loss + weighted_track_text_loss})
             ret.update({'_track_memory_pids': pid_indices.detach()})
             ret.update({'_track_memory_image_feats': i_feats.detach()})
+
+        if 'cvpr' in self.current_task:
+            cvpr_i_feats = self.compute_cvpr_feature(image_feats, i_feats, t_feats)
+            ret.update({
+                'cvpr_loss': objectives.compute_sdm(
+                    cvpr_i_feats,
+                    t_feats,
+                    batch['pids'],
+                    logit_scale,
+                ) * self.args.cvpr_loss_weight
+            })
 
         if 'fta' in self.current_task:
             with torch.autocast(dtype=torch.float16, device_type='cuda'):

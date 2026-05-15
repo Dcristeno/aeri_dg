@@ -36,6 +36,11 @@ SWANLAB_MODE="${SWANLAB_MODE:-cloud}"
 FTA_NUM_QUERY="${FTA_NUM_QUERY:-4}"
 FTA_QUERY_MODE="${FTA_QUERY_MODE:-static}"
 FTA_QUERY_CONDITION_SCALE="${FTA_QUERY_CONDITION_SCALE:-1.0}"
+CVPR_NUM_QUERY="${CVPR_NUM_QUERY:-1}"
+CVPR_TOPK="${CVPR_TOPK:-16}"
+CVPR_NUM_STAGES="${CVPR_NUM_STAGES:-3}"
+CVPR_MOMENTUM="${CVPR_MOMENTUM:-0.7}"
+CVPR_LOSS_WEIGHT="${CVPR_LOSS_WEIGHT:-1.0}"
 
 args=(
   --name "${RUN_NAME}"
@@ -69,6 +74,11 @@ args=(
   --fta_num_query "${FTA_NUM_QUERY}"
   --fta_query_mode "${FTA_QUERY_MODE}"
   --fta_query_condition_scale "${FTA_QUERY_CONDITION_SCALE}"
+  --cvpr_num_query "${CVPR_NUM_QUERY}"
+  --cvpr_topk "${CVPR_TOPK}"
+  --cvpr_num_stages "${CVPR_NUM_STAGES}"
+  --cvpr_momentum "${CVPR_MOMENTUM}"
+  --cvpr_loss_weight "${CVPR_LOSS_WEIGHT}"
   --lr 5e-6
   --lr2 5e-5
   --num_epoch 60
