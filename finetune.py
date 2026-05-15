@@ -37,7 +37,7 @@ def normalize_finetune_loss_names(loss_names):
         "ga_bridge": "bridge",
         "bridge_loss": "bridge",
     }
-    finetune_alias_seen = any(token in {"fa", "fta", "cda", "bridge", "g2a", "ga", "ga_bridge", "cvpr"} for token in tokens)
+    finetune_alias_seen = any(token in {"fa", "fta", "cda", "bridge", "g2a", "ga", "ga_bridge"} for token in tokens)
     for token in tokens:
         token = alias_map.get(token, token)
         if finetune_alias_seen and token == "sdm":

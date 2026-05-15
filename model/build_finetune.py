@@ -368,6 +368,9 @@ class IRRA(nn.Module):
 
         logit_scale = self.logit_scale
 
+        if 'sdm' in self.current_task:
+            ret.update({'sdm_loss': objectives.compute_sdm(i_feats, t_feats, batch['pids'], logit_scale)})
+
         if 'cda' in self.current_task:
             if g_i_feats is None:
                 raise ValueError("cda loss requires ground image features, but the current batch does not provide them.")

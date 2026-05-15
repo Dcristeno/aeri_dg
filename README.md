@@ -47,12 +47,12 @@ bash finetune.sh
 
 To enable SwanLab logging for finetuning, add `USE_SWANLAB=1`.
 
-To run the cleaner `CDA+FTA` baseline with AERI per-ID sparse sampling, for example `k=2`, run:
+To run the SDM baseline with AERI per-ID sparse sampling, for example `k=2`, run:
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
-LOSS_NAMES='cda+fta' \
+LOSS_NAMES='sdm' \
 TRAIN_SAMPLES_PER_ID=2 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
@@ -231,12 +231,12 @@ bash finetune.sh
 
 This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
 
-To try CVPR-style progressive top-k patch refinement, add a `cvpr` loss:
+To try CVPR-style progressive top-k patch refinement on top of the SDM baseline, add a `cvpr` loss:
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
-LOSS_NAMES='cda+fta+cvpr' \
+LOSS_NAMES='sdm+cvpr' \
 TRAIN_SAMPLES_PER_ID=2 \
 CVPR_TOPK=16 \
 CVPR_NUM_STAGES=3 \
@@ -246,7 +246,7 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
-The CVPR branch uses the current image CLS/text features as a query context, repeatedly selects the top-k aerial visual patch tokens, refines the query and selected patches, then applies an extra SDM loss between the refined aerial feature and text feature. Existing `cda`, `fta`, `bridge`, `proto`, and `track` paths are unchanged unless `cvpr` is added to `LOSS_NAMES`.
+The CVPR branch uses the current image CLS/text features as a query context, repeatedly selects the top-k aerial visual patch tokens, refines the query and selected patches, then applies an extra SDM loss between the refined aerial feature and text feature.
 
 ## Notes on the provided weights
 
