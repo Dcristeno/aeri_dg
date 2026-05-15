@@ -4,11 +4,14 @@ from .lr_scheduler import LRSchedulerWithWarmup
 
 
 def build_optimizer(args, model):
-    params = [
-        {"params": [param], "lr": args.lr, "weight_decay": args.weight_decay}
-        for param in model.parameters()
-        if param.requires_grad
-    ]
+    params = []
+    for key, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        lr = args.lr
+        if "fta_" in key:
+            lr = args.lr2 * args.lr_factor
+        params.append({"params": [param], "lr": lr, "weight_decay": args.weight_decay})
 
     if args.optimizer == "SGD":
         return torch.optim.SGD(params, lr=args.lr, momentum=args.momentum)

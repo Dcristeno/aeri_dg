@@ -28,6 +28,9 @@ def get_args():
     parser.add_argument("--loss_names", default="base", help="training losses: base, base+id, or base+id+bridge")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
     parser.add_argument("--bridge_loss_weight", type=float, default=0.5, help="weight for detached ground-to-aerial bridge loss")
+    parser.add_argument("--fta_loss_weight", type=float, default=0.5, help="weight for fuzzy token alignment loss")
+    parser.add_argument("--fta_num_query", type=int, default=4, help="number of learned query slots used by FTA")
+    parser.add_argument("--cmt_depth", type=int, default=4, help="number of self-attention layers after FTA cross attention")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

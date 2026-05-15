@@ -20,6 +20,21 @@ def compute_sdm(image_features, text_features, pid, logit_scale, epsilon=1e-8):
     return i2t_loss.sum(dim=1).mean() + t2i_loss.sum(dim=1).mean()
 
 
+def compute_sdm_from_similarity(sim_i2t, sim_t2i, pid, logit_scale, epsilon=1e-8):
+    """SDM on precomputed image-to-text and text-to-image similarity matrices."""
+    batch_size = sim_i2t.shape[0]
+    pid = pid.reshape((batch_size, 1))
+    labels = (pid - pid.t() == 0).float()
+    labels = labels / (labels.sum(dim=1, keepdim=True) + epsilon)
+
+    logits_i2t = logit_scale * sim_i2t
+    logits_t2i = logit_scale * sim_t2i
+
+    i2t_loss = F.softmax(logits_i2t, dim=1) * (F.log_softmax(logits_i2t, dim=1) - torch.log(labels + epsilon))
+    t2i_loss = F.softmax(logits_t2i, dim=1) * (F.log_softmax(logits_t2i, dim=1) - torch.log(labels + epsilon))
+    return i2t_loss.sum(dim=1).mean() + t2i_loss.sum(dim=1).mean()
+
+
 def compute_aeri_base_sdm_terms(aerial_features, ground_features, text_features, pid, logit_scale):
     """Plain AERI baseline: aerial-text + ground-text SDM."""
     if ground_features is None:

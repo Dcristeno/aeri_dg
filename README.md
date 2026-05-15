@@ -6,6 +6,7 @@ This branch starts from the `aeri-k2-sdm-id` experiment and adds a lightweight d
 base SDM
 + ID loss
 + detached ground-to-aerial bridge loss
++ optional fuzzy token alignment loss
 + random per-ID k=2 training sampling
 ```
 
@@ -35,7 +36,7 @@ SwanLab 0.7.15
 
 ## Objective
 
-The default training objective is `LOSS_NAMES=base+id`:
+The default training script objective is `LOSS_NAMES=base+id+bridge`:
 
 ```text
 base_loss =
@@ -49,6 +50,9 @@ id_loss =
 
 bridge_loss =
   1 - cosine(aerial_feature, ground_feature.detach())
+
+fta_loss =
+  SDM(fuzzy aerial tokens, fuzzy text tokens)
 ```
 
 The default sampler rebuilds the finetune train loader each epoch with `TRAIN_SAMPLES_PER_ID=2`, randomly choosing two samples per identity before shuffling.
@@ -79,6 +83,26 @@ Useful overrides:
 LOSS_NAMES=base \
 TRAIN_SAMPLES_PER_ID=0 \
 RUN_NAME='aeri_base_fullsample' \
+bash finetune.sh
+```
+
+To try fuzzy token alignment on top of the strong bridge baseline:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+USE_SWANLAB=1 \
+RUN_NAME='aeri_k2_ground_bridge_fta' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_fta' \
+LOSS_NAMES='base+id+bridge+fta' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
+ID_LOSS_WEIGHT=0.5 \
+BRIDGE_LOSS_WEIGHT=2.0 \
+FTA_LOSS_WEIGHT=0.5 \
+FTA_NUM_QUERY=4 \
+SEED=1 \
+CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 

@@ -15,6 +15,8 @@ SWANLAB_MODE="${SWANLAB_MODE:-cloud}"
 LOSS_NAMES="${LOSS_NAMES:-base+id+bridge}"
 ID_LOSS_WEIGHT="${ID_LOSS_WEIGHT:-0.5}"
 BRIDGE_LOSS_WEIGHT="${BRIDGE_LOSS_WEIGHT:-0.5}"
+FTA_LOSS_WEIGHT="${FTA_LOSS_WEIGHT:-0.5}"
+FTA_NUM_QUERY="${FTA_NUM_QUERY:-4}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-2}"
 TRAIN_SAMPLE_STRATEGY="${TRAIN_SAMPLE_STRATEGY:-random}"
 
@@ -29,6 +31,8 @@ args=(
   --loss_names "${LOSS_NAMES}"
   --id_loss_weight "${ID_LOSS_WEIGHT}"
   --bridge_loss_weight "${BRIDGE_LOSS_WEIGHT}"
+  --fta_loss_weight "${FTA_LOSS_WEIGHT}"
+  --fta_num_query "${FTA_NUM_QUERY}"
   --train_samples_per_id "${TRAIN_SAMPLES_PER_ID}"
   --train_sample_strategy "${TRAIN_SAMPLE_STRATEGY}"
   --lr 5e-6
