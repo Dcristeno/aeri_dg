@@ -381,7 +381,18 @@ class IRRA(nn.Module):
             S_t2v = (t2v_simi * mu_and).mean(dim=-1)
             S_v2t = (v2t_simi * mu_and).mean(dim=-1) 
 
-            ret.update({'fta_loss':0.5*objectives.compute_fa_loss(S_t2v, S_v2t, batch['pids'], logit_scale)})
+            fta_align_loss = 0.5 * objectives.compute_fa_loss(S_t2v, S_v2t, batch['pids'], logit_scale)
+            fta_hard_loss = objectives.compute_bidirectional_hard_negative_loss(
+                S_t2v,
+                S_v2t,
+                batch['pids'],
+                margin=self.args.fta_hard_margin,
+            )
+            weighted_fta_align_loss = fta_align_loss * self.args.fta_loss_weight
+            weighted_fta_hard_loss = fta_hard_loss * self.args.fta_hard_weight
+            ret.update({'fta_align_loss': weighted_fta_align_loss})
+            ret.update({'fta_hard_loss': weighted_fta_hard_loss})
+            ret.update({'fta_loss': weighted_fta_align_loss + weighted_fta_hard_loss})
 
         if 'cmpm' in self.current_task:
             ret.update({'cmpm_loss':objectives.compute_cmpm(i_feats, t_feats, batch['pids'])})

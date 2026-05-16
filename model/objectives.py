@@ -312,6 +312,29 @@ def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
 
     return loss
 
+def compute_bidirectional_hard_negative_loss(S_t2v, S_v2t, pid, margin=0.05):
+    """
+    Hard-negative ranking loss over FTA similarity matrices.
+
+    The positive score is the strongest same-pid match in the batch, while the
+    negative score is the strongest different-pid match. This directly sharpens
+    the top of the retrieval ranking without changing inference.
+    """
+    batch_size = S_t2v.shape[0]
+    pid = pid.reshape((batch_size, 1))
+    pos_mask = pid == pid.t()
+    neg_mask = ~pos_mask
+
+    min_value = torch.finfo(S_t2v.dtype).min
+    pos_t2v = S_t2v.masked_fill(~pos_mask, min_value).max(dim=1).values
+    neg_t2v = S_t2v.masked_fill(~neg_mask, min_value).max(dim=1).values
+    pos_v2t = S_v2t.masked_fill(~pos_mask, min_value).max(dim=1).values
+    neg_v2t = S_v2t.masked_fill(~neg_mask, min_value).max(dim=1).values
+
+    t2v_loss = F.relu(margin + neg_t2v - pos_t2v).mean()
+    v2t_loss = F.relu(margin + neg_v2t - pos_v2t).mean()
+    return 0.5 * (t2v_loss + v2t_loss)
+
 def compute_compact_cross_modal_matching_loss(image_features, text_features, pid, logit_scale, epsilon=1e-8):
     """
     Compact Cross-modal Matching (CCM) inspired by P-CLIP.

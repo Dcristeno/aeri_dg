@@ -38,6 +38,9 @@ SWANLAB_MODE="${SWANLAB_MODE:-cloud}"
 FTA_NUM_QUERY="${FTA_NUM_QUERY:-4}"
 FTA_QUERY_MODE="${FTA_QUERY_MODE:-static}"
 FTA_QUERY_CONDITION_SCALE="${FTA_QUERY_CONDITION_SCALE:-1.0}"
+FTA_LOSS_WEIGHT="${FTA_LOSS_WEIGHT:-1.0}"
+FTA_HARD_WEIGHT="${FTA_HARD_WEIGHT:-0.0}"
+FTA_HARD_MARGIN="${FTA_HARD_MARGIN:-0.05}"
 
 args=(
   --name "${RUN_NAME}"
@@ -73,6 +76,9 @@ args=(
   --fta_num_query "${FTA_NUM_QUERY}"
   --fta_query_mode "${FTA_QUERY_MODE}"
   --fta_query_condition_scale "${FTA_QUERY_CONDITION_SCALE}"
+  --fta_loss_weight "${FTA_LOSS_WEIGHT}"
+  --fta_hard_weight "${FTA_HARD_WEIGHT}"
+  --fta_hard_margin "${FTA_HARD_MARGIN}"
   --lr 5e-6
   --lr2 5e-5
   --num_epoch 60

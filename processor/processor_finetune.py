@@ -46,6 +46,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "pclip_clean_ccm": AverageMeter(),
         "pclip_noisy_ccm": AverageMeter(),
         "fta_loss": AverageMeter(),
+        "fta_align_loss": AverageMeter(),
+        "fta_hard_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
         "itc_loss": AverageMeter(),
@@ -97,6 +99,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['pclip_clean_ccm'].update(ret.get('pclip_clean_ccm', 0), batch_size)
             meters['pclip_noisy_ccm'].update(ret.get('pclip_noisy_ccm', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
+            meters['fta_align_loss'].update(ret.get('fta_align_loss', 0), batch_size)
+            meters['fta_hard_loss'].update(ret.get('fta_hard_loss', 0), batch_size)
             meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
             meters['img_acc'].update(ret.get('img_acc', 0), batch_size)
             meters['txt_acc'].update(ret.get('txt_acc', 0), batch_size)
