@@ -148,13 +148,17 @@ class ImageTextMLMDataset(Dataset):
                  text_length: int = 77,
                  truncate: bool = True,
                  tile_mix_grid: int = 0,
-                 tile_mix_prob: float = 0.0):
+                 tile_mix_prob: float = 0.0,
+                 pclip_noise_ratio: float = 0.0,
+                 vocab_size: int = 49408):
         self.dataset = dataset
         self.transform = transform
         self.text_length = text_length
         self.truncate = truncate
         self.tile_mix_grid = int(tile_mix_grid)
         self.tile_mix_prob = float(tile_mix_prob)
+        self.pclip_noise_ratio = float(pclip_noise_ratio)
+        self.vocab_size = int(vocab_size)
 
         self.tokenizer = SimpleTokenizer()
         self.pid_to_indices = defaultdict(list)
@@ -174,7 +178,9 @@ class ImageTextMLMDataset(Dataset):
             img = self.transform(img)
             g = self.transform(g)
         caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
-        mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_tokens.cpu().numpy())
+        caption_np = caption_tokens.cpu().numpy().copy()
+        mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_np.copy())
+        pclip_noisy_tokens = self._build_random_replaced_tokens(caption_np.copy())
         ret = {
             'pids': pid,
             'images': img,
@@ -182,6 +188,7 @@ class ImageTextMLMDataset(Dataset):
             'caption_ids': caption_tokens,
             'mlm_ids': mlm_tokens,
             'mlm_labels': mlm_labels,
+            'pclip_noisy_caption_ids': pclip_noisy_tokens,
         }
 
         return ret
@@ -258,6 +265,33 @@ class ImageTextMLMDataset(Dataset):
             tokens[1] = mask
 
         return torch.tensor(tokens), torch.tensor(labels)
+
+
+    def _build_random_replaced_tokens(self, tokens):
+        """
+        P-CLIP lite text perturbation: replace a small portion of normal words
+        with random vocabulary tokens while preserving SOT/EOT/padding.
+        """
+        if self.pclip_noise_ratio <= 0:
+            return torch.tensor(tokens)
+
+        max_random_token = min(self.vocab_size, len(self.tokenizer.encoder) - 3, 49405)
+        token_range = list(range(1, max_random_token))
+        candidate_positions = [idx for idx, token in enumerate(tokens) if 0 < token < 49405]
+        if not candidate_positions or not token_range:
+            return torch.tensor(tokens)
+
+        replaced = False
+        for idx in candidate_positions:
+            if random.random() < self.pclip_noise_ratio:
+                tokens[idx] = random.choice(token_range)
+                replaced = True
+
+        if not replaced:
+            idx = random.choice(candidate_positions)
+            tokens[idx] = random.choice(token_range)
+
+        return torch.tensor(tokens)
 
 
 class FilterDataset(Dataset):

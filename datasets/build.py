@@ -325,6 +325,13 @@ def sample_train_dataset_per_pid(
     return sampled_dataset
 
 
+def _mlm_dataset_kwargs(args):
+    return {
+        "pclip_noise_ratio": getattr(args, "pclip_noise_ratio", 0.0),
+        "vocab_size": getattr(args, "vocab_size", 49408),
+    }
+
+
 def build_finetune_train_loader(args, train_dataset, epoch=None):
     train_transforms = build_transforms(img_size=args.img_size,
                                         aug=args.img_aug,
@@ -343,7 +350,8 @@ def build_finetune_train_loader(args, train_dataset, epoch=None):
                                     train_transforms,
                                     text_length=args.text_length,
                                     tile_mix_grid=args.train_tile_mix_grid,
-                                    tile_mix_prob=args.train_tile_mix_prob)
+                                    tile_mix_prob=args.train_tile_mix_prob,
+                                    **_mlm_dataset_kwargs(args))
     return DataLoader(train_set,
                       batch_size=args.batch_size,
                       shuffle=True,
@@ -381,12 +389,14 @@ def build_dataloader(args, tranforms=None):
                 syn_dataset = __factory[args.pretrain](root=args.root_dir)
                 train_set = ImageTextMLMDataset(syn_dataset.train,
                                         train_transforms,
-                                        text_length=args.text_length)
+                                        text_length=args.text_length,
+                                        **_mlm_dataset_kwargs(args))
                 num_classes = len(syn_dataset.train)
             else:
                 train_set = ImageTextMLMDataset(dataset.train,
                                         train_transforms,
-                                        text_length=args.text_length)
+                                        text_length=args.text_length,
+                                        **_mlm_dataset_kwargs(args))
         else:
             train_set = ImageTextDataset(dataset.train,
                                      train_transforms,
@@ -490,7 +500,8 @@ def build_zero_shot_loader(args, finetune=False):
         train_dataset = syn_dataset.train
         train_set = ImageTextMLMDataset(train_dataset,
                                 train_transforms,
-                                text_length=args.text_length)
+                                text_length=args.text_length,
+                                **_mlm_dataset_kwargs(args))
         num_classes = len(syn_dataset.train)
 
         if eval_mode == "heldout":
@@ -506,7 +517,8 @@ def build_zero_shot_loader(args, finetune=False):
                                         text_length=args.text_length)
             train_set = ImageTextMLMDataset(train_dataset,
                                     train_transforms,
-                                    text_length=args.text_length)
+                                    text_length=args.text_length,
+                                    **_mlm_dataset_kwargs(args))
             num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
             logger.info(
                 f'using held-out finetune validation split: train_samples={len(train_dataset)}, '
@@ -536,7 +548,8 @@ def build_zero_shot_loader(args, finetune=False):
                                     text_length=args.text_length)
         train_set = ImageTextMLMDataset(syn_dataset.train,
                                 train_transforms,
-                                text_length=args.text_length)
+                                text_length=args.text_length,
+                                **_mlm_dataset_kwargs(args))
         train_dataset = syn_dataset.train
         num_classes = len(syn_dataset.train)
 

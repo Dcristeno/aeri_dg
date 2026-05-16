@@ -312,6 +312,35 @@ def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
 
     return loss
 
+def compute_compact_cross_modal_matching_loss(image_features, text_features, pid, logit_scale, epsilon=1e-8):
+    """
+    Compact Cross-modal Matching (CCM) inspired by P-CLIP.
+
+    It multiplies image-to-text and text-to-image probabilities, so pairs that
+    are confident in only one direction are suppressed before matching to the
+    pid-positive distribution.
+    """
+    batch_size = image_features.shape[0]
+    pid = pid.reshape((batch_size, 1))
+    labels = (pid == pid.t()).float()
+
+    image_norm = F.normalize(image_features, dim=-1)
+    text_norm = F.normalize(text_features, dim=-1)
+    logits = logit_scale * image_norm @ text_norm.t()
+
+    i2t_prob = F.softmax(logits, dim=1)
+    t2i_prob = F.softmax(logits, dim=0)
+    compact_prob = i2t_prob * t2i_prob
+
+    i2t_labels = labels / (labels.sum(dim=1, keepdim=True) + epsilon)
+    t2i_labels = labels.t() / (labels.t().sum(dim=1, keepdim=True) + epsilon)
+
+    i2t_loss = -(i2t_labels * torch.log(compact_prob + epsilon)).sum(dim=1).mean()
+    t2i_loss = -(t2i_labels * torch.log(compact_prob.t() + epsilon)).sum(dim=1).mean()
+
+    return 0.5 * (i2t_loss + t2i_loss)
+
+
 def entropy_loss(mu, eps=1e-8):
     """
     熵约束损失（Entropy Regularization Loss）

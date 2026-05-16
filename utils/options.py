@@ -47,6 +47,8 @@ def get_args():
     parser.add_argument("--bridge_pair_weight", type=float, default=1.0, help="weight of the pair-level aerial-to-ground bridge term")
     parser.add_argument("--bridge_distill_weight", type=float, default=1.0, help="weight of the ground-to-text -> aerial-to-text relation distillation term")
     parser.add_argument("--bridge_distill_temp", type=float, default=0.07, help="temperature for the relation distillation bridge term")
+    parser.add_argument("--pclip_loss_weight", type=float, default=0.5, help="weight for P-CLIP lite random text perturbation + CCM loss")
+    parser.add_argument("--pclip_noise_ratio", type=float, default=0.15, help="token replacement ratio for P-CLIP lite random text perturbation")
     parser.add_argument("--aerial_prototype_path", type=str, default="", help="path to a fixed pid-indexed aerial prototype tensor file")
     parser.add_argument("--aerial_prototype_weight", type=float, default=0.0, help="weight for the fixed aerial trajectory prototype pull loss")
     parser.add_argument("--track_memory_loss_weight", type=float, default=0.0, help="overall weight for the online track-memory alignment loss")

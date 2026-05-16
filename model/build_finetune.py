@@ -317,6 +317,21 @@ class IRRA(nn.Module):
             ret.update({'bridge_distill_loss': weighted_distill_loss})
             ret.update({'bridge_loss': weighted_pair_loss + weighted_distill_loss})
 
+        if 'pclip' in self.current_task:
+            if 'pclip_noisy_caption_ids' not in batch:
+                raise ValueError("pclip loss requires pclip_noisy_caption_ids from ImageTextMLMDataset.")
+            noisy_caption_ids = batch['pclip_noisy_caption_ids']
+            with torch.autocast(dtype=torch.float16, device_type='cuda'):
+                noisy_text_feats = self.base_model.encode_text(noisy_caption_ids)
+            noisy_t_feats = noisy_text_feats[torch.arange(noisy_text_feats.shape[0]), noisy_caption_ids.argmax(dim=-1)].float()
+
+            clean_ccm = objectives.compute_compact_cross_modal_matching_loss(i_feats, t_feats, batch['pids'], logit_scale)
+            noisy_ccm = objectives.compute_compact_cross_modal_matching_loss(i_feats, noisy_t_feats, batch['pids'], logit_scale)
+            pclip_loss = 0.5 * (clean_ccm + noisy_ccm) * self.args.pclip_loss_weight
+            ret.update({'pclip_loss': pclip_loss})
+            ret.update({'pclip_clean_ccm': clean_ccm.detach()})
+            ret.update({'pclip_noisy_ccm': noisy_ccm.detach()})
+
         if 'proto' in self.current_task:
             if not hasattr(self, "aerial_prototypes") or self.aerial_prototypes is None:
                 raise ValueError("proto loss requires preloaded aerial prototypes, but none were found.")
