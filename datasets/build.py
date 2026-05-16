@@ -356,8 +356,8 @@ def _uses_id_loss(args):
 
 def _set_id_class_mapping(args, train_dataset):
     pid_classes = sorted({int(sample[0]) for sample in train_dataset})
-    args.id_pid_classes = pid_classes
-    return len(pid_classes)
+    args.id_pid_classes = []
+    return max(pid_classes, default=-1) + 1
 
 
 def build_dataloader(args, tranforms=None):

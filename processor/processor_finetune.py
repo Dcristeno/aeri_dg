@@ -55,7 +55,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
 
-    best_rsum = 0.0
+    best_r1 = 0.0
     best_epoch = None
 
     # train
@@ -134,19 +134,19 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
                 .format(epoch, time_per_batch,
                         train_loader.batch_size / time_per_batch))
         if evaluator is not None and eval_period > 0 and epoch % eval_period == 0:
-            logger.info(f"best RSum: {best_rsum}")
+            logger.info(f"best R1: {best_r1}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 if args.distributed:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
                 else:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
-                rsum = eval_metrics["t2i_RSum"]
+                r1 = eval_metrics["t2i_R1"]
                 if swanlab_run is not None:
                     swanlab_run.log({"epoch": epoch, **{f"val/{k}": v for k, v in eval_metrics.items()}})
                 torch.cuda.empty_cache()
-                if best_rsum < rsum:
-                    best_rsum = rsum
+                if best_r1 < r1:
+                    best_r1 = r1
                     arguments["epoch"] = epoch
                     best_epoch = epoch
                     checkpointer.save("best0", **arguments)
@@ -154,7 +154,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     if get_rank() == 0:
         checkpointer.save("final", **arguments)
         if best_epoch is not None:
-            logger.info(f"best RSum: {best_rsum} at epoch {best_epoch}")
+            logger.info(f"best R1: {best_r1} at epoch {best_epoch}")
         else:
             logger.info("No intermediate validation was run. Saved final checkpoint as final.pth")
 

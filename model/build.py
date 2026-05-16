@@ -143,7 +143,7 @@ class IRRA(nn.Module):
             ret.update({'cmpm_loss':objectives.compute_cmpm(i_feats, t_feats, batch['pids'])})
         
         if 'id' in self.current_task:
-            id_labels = self._map_id_labels(batch['pids'])
+            id_labels = batch['pids'].long()
             image_logits = self.classifier(i_feats.float())
             text_logits = self.classifier(t_feats.float())
             ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, id_labels)*self.args.id_loss_weight})
