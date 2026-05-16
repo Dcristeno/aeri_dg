@@ -250,6 +250,22 @@ python adaptive_merge_checkpoints.py \
 
 The selected checkpoint is saved as `best_adaptive_merge.pth`, and the alpha scores are saved to `adaptive_merge_scores.json`. For a quick coefficient search, add small subset limits such as `--max_text_batches 8 --max_image_batches 8`; for final selection, use the full test split.
 
+For AdaMMS-style heterogeneous merging, keep the target checkpoint architecture fixed and inject only mapped backbone parameters from the source checkpoint:
+
+```bash
+python adaptive_merge_checkpoints.py \
+  --config_file logs/AERI-PEDES/<target_run>/configs.yaml \
+  --base_checkpoint logs/merged_adaptive/<target>/best.pth \
+  --other_checkpoint logs/AERI-PEDES/<source_run>/best0.pth \
+  --output_dir logs/merged_adaptive/aeri_backbone_only_merge \
+  --root_dir ${DATA_ROOT} \
+  --alphas 0 0.02 0.04 0.06 0.08 0.1 \
+  --include_prefix base_model \
+  --topk 10
+```
+
+With `--include_prefix base_model`, non-backbone heads such as FTA, bridge, and classifiers stay from the target checkpoint.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

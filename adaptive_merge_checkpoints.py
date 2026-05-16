@@ -63,12 +63,27 @@ def load_model_state(checkpoint_path):
     return cleaned
 
 
-def merge_states(base_state, other_state, alpha):
+def should_merge_key(key, include_prefixes=None, exclude_prefixes=None, exclude_keywords=None):
+    include_prefixes = include_prefixes or []
+    exclude_prefixes = exclude_prefixes or []
+    exclude_keywords = exclude_keywords or []
+
+    if include_prefixes and not any(key.startswith(prefix) for prefix in include_prefixes):
+        return False
+    if exclude_prefixes and any(key.startswith(prefix) for prefix in exclude_prefixes):
+        return False
+    if exclude_keywords and any(keyword in key for keyword in exclude_keywords):
+        return False
+    return True
+
+
+def merge_states(base_state, other_state, alpha, include_prefixes=None, exclude_prefixes=None, exclude_keywords=None):
     merged = OrderedDict()
     stats = {
         "merged_keys": 0,
         "merged_numel": 0,
         "kept_base_keys": 0,
+        "skipped_by_scope": 0,
         "missing_in_other": 0,
         "shape_mismatch": 0,
         "non_floating": 0,
@@ -76,9 +91,11 @@ def merge_states(base_state, other_state, alpha):
     }
 
     for key, base_value in base_state.items():
+        in_scope = should_merge_key(key, include_prefixes, exclude_prefixes, exclude_keywords)
         other_value = other_state.get(key)
         can_merge = (
-            other_value is not None
+            in_scope
+            and other_value is not None
             and torch.is_tensor(base_value)
             and torch.is_tensor(other_value)
             and base_value.shape == other_value.shape
@@ -97,6 +114,9 @@ def merge_states(base_state, other_state, alpha):
         else:
             merged[key] = base_value
         stats["kept_base_keys"] += 1
+        if not in_scope:
+            stats["skipped_by_scope"] += 1
+            continue
         if other_value is None:
             stats["missing_in_other"] += 1
         elif torch.is_tensor(base_value) and torch.is_tensor(other_value) and base_value.shape != other_value.shape:
@@ -184,6 +204,9 @@ def build_args():
     parser.add_argument("--max_text_batches", type=int, default=0, help="Use a subset for quick search; 0 means full test text set.")
     parser.add_argument("--max_image_batches", type=int, default=0, help="Use a subset for quick search; 0 means full test image set.")
     parser.add_argument("--device", default="cuda", help="Device for feature extraction.")
+    parser.add_argument("--include_prefix", nargs="*", default=[], help="Only merge checkpoint keys with these prefixes, e.g. base_model.")
+    parser.add_argument("--exclude_prefix", nargs="*", default=[], help="Never merge checkpoint keys with these prefixes.")
+    parser.add_argument("--exclude_keyword", nargs="*", default=[], help="Never merge checkpoint keys containing these substrings.")
     parser.add_argument("--save_all", action="store_true", help="Save every alpha checkpoint, not only the selected one.")
     return parser.parse_args()
 
@@ -205,6 +228,12 @@ def main():
     logger.info(args)
     logger.info(f"Base checkpoint: {cli_args.base_checkpoint}")
     logger.info(f"Other checkpoint: {cli_args.other_checkpoint}")
+    if cli_args.include_prefix:
+        logger.info(f"Merging only keys with prefixes: {cli_args.include_prefix}")
+    if cli_args.exclude_prefix:
+        logger.info(f"Excluding keys with prefixes: {cli_args.exclude_prefix}")
+    if cli_args.exclude_keyword:
+        logger.info(f"Excluding keys containing: {cli_args.exclude_keyword}")
 
     device = torch.device(cli_args.device if torch.cuda.is_available() or cli_args.device == "cpu" else "cpu")
     alphas = parse_alphas(cli_args.alphas)
@@ -217,10 +246,18 @@ def main():
     signatures, margins, merge_stats = [], [], {}
     for alpha in alphas:
         logger.info(f"Evaluating merged alpha={alpha:.4f}")
-        state, stats = merge_states(base_state, other_state, alpha)
+        state, stats = merge_states(
+            base_state,
+            other_state,
+            alpha,
+            include_prefixes=cli_args.include_prefix,
+            exclude_prefixes=cli_args.exclude_prefix,
+            exclude_keywords=cli_args.exclude_keyword,
+        )
         missing, unexpected = model.load_state_dict(state, strict=False)
         logger.info(
             f"alpha={alpha:.4f}, merged_keys={stats['merged_keys']}, "
+            f"skipped_by_scope={stats['skipped_by_scope']}, "
             f"missing_model_keys={len(missing)}, unexpected_checkpoint_keys={len(unexpected)}"
         )
         signature, margin = compute_retrieval_signature(
@@ -242,7 +279,14 @@ def main():
     score_rows = score_signatures(alphas, signatures, margins, cli_args.confidence_weight)
     best_row = max(score_rows, key=lambda row: (row["score"], row["consistency"], -abs(row["alpha"] - 0.5)))
     best_alpha = best_row["alpha"]
-    best_state, best_stats = merge_states(base_state, other_state, best_alpha)
+    best_state, best_stats = merge_states(
+        base_state,
+        other_state,
+        best_alpha,
+        include_prefixes=cli_args.include_prefix,
+        exclude_prefixes=cli_args.exclude_prefix,
+        exclude_keywords=cli_args.exclude_keyword,
+    )
 
     best_path = op.join(cli_args.output_dir, "best_adaptive_merge.pth")
     torch.save(
@@ -251,6 +295,9 @@ def main():
             "alpha": best_alpha,
             "base_checkpoint": cli_args.base_checkpoint,
             "other_checkpoint": cli_args.other_checkpoint,
+            "include_prefix": cli_args.include_prefix,
+            "exclude_prefix": cli_args.exclude_prefix,
+            "exclude_keyword": cli_args.exclude_keyword,
             "scores": score_rows,
             "merge_stats": best_stats,
         },
@@ -266,6 +313,9 @@ def main():
         "confidence_weight": cli_args.confidence_weight,
         "max_text_batches": cli_args.max_text_batches,
         "max_image_batches": cli_args.max_image_batches,
+        "include_prefix": cli_args.include_prefix,
+        "exclude_prefix": cli_args.exclude_prefix,
+        "exclude_keyword": cli_args.exclude_keyword,
         "scores": score_rows,
         "merge_stats": merge_stats,
     }
