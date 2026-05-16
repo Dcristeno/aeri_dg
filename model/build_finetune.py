@@ -375,12 +375,12 @@ class IRRA(nn.Module):
             ret.update({'itc_loss':objectives.compute_itc(i_feats, t_feats, logit_scale)})
         
         if 'id' in self.current_task:
-            id_labels = batch['pids'].long()
+            id_labels = batch['pids'].long() + int(getattr(self.args, "id_label_offset", 0))
             image_logits = self.classifier(i_feats.float())
             text_logits = self.classifier(t_feats.float())
-            if id_labels.numel() > 0 and id_labels.max().item() >= image_logits.shape[1]:
+            if id_labels.numel() > 0 and (id_labels.min().item() < 0 or id_labels.max().item() >= image_logits.shape[1]):
                 raise ValueError(
-                    f"id label out of classifier range: max_label={id_labels.max().item()}, "
+                    f"id label out of classifier range: min_label={id_labels.min().item()}, max_label={id_labels.max().item()}, "
                     f"num_classes={image_logits.shape[1]}"
                 )
             ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, id_labels)*self.args.id_loss_weight})
