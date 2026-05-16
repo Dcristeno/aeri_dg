@@ -18,6 +18,7 @@ def get_args():
     parser.add_argument("--swanlab_project", default="CFAN", help="SwanLab project name")
     parser.add_argument("--swanlab_experiment", default="", help="Optional SwanLab experiment name")
     parser.add_argument("--swanlab_mode", default="cloud", help="SwanLab mode, e.g. cloud or local")
+    parser.add_argument("--save_optimizer", default=False, action='store_true', help="save optimizer and scheduler state in finetune checkpoints")
 
     parser.add_argument("--finetune", type=str, default="pretrain/HAMbest0.pth")
     parser.add_argument("--pretrain", type=str, default="")

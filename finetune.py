@@ -118,7 +118,11 @@ if __name__ == '__main__':
     scheduler = build_lr_scheduler(args, optimizer)
 
     is_master = get_rank() == 0
-    checkpointer = Checkpointer(model, optimizer, scheduler, args.output_dir, is_master)
+    checkpoint_optimizer = optimizer if args.save_optimizer else None
+    checkpoint_scheduler = scheduler if args.save_optimizer else None
+    if is_master and not args.save_optimizer:
+        logger.info("saving model-only checkpoints; pass --save_optimizer to include optimizer and scheduler state")
+    checkpointer = Checkpointer(model, checkpoint_optimizer, checkpoint_scheduler, args.output_dir, is_master)
     evaluator = Evaluator(val_img_loader, val_txt_loader) if val_img_loader is not None and val_txt_loader is not None else None
     swanlab_run = None
     if args.use_swanlab and is_master:

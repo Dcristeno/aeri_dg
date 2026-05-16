@@ -91,6 +91,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['track_image_loss'].update(ret.get('track_image_loss', 0), batch_size)
             meters['track_text_loss'].update(ret.get('track_text_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
+            meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
+            meters['img_acc'].update(ret.get('img_acc', 0), batch_size)
+            meters['txt_acc'].update(ret.get('txt_acc', 0), batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()
