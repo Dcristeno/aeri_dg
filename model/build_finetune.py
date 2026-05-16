@@ -17,6 +17,10 @@ class IRRA(nn.Module):
         self.base_model, base_cfg = build_CLIP_from_openai_pretrained(args.pretrain_choice, args.img_size, args.stride_size)
         self.embed_dim = base_cfg['embed_dim']
         self.logit_scale = torch.ones([]) * (1 / args.temperature) 
+        if 'id' in self.current_task:
+            self.classifier = nn.Linear(self.embed_dim, self.num_classes)
+            nn.init.normal_(self.classifier.weight.data, std=0.001)
+            nn.init.constant_(self.classifier.bias.data, val=0.0)
         if 'proto' in self.current_task:
             self._load_aerial_prototypes()
         if 'track' in self.current_task:
