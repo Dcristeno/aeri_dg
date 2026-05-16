@@ -81,7 +81,11 @@ if __name__ == '__main__':
 
     # get image-text pair datasets dataloader
     trainset ,train_loader, val_img_loader, val_txt_loader, num_classes = build_zero_shot_loader(args,finetune=True)
-    args.track_memory_num_pids = max((sample[0] for sample in trainset), default=-1) + 1
+    max_train_pid = max((int(sample[0]) for sample in trainset), default=-1)
+    if "id" in [token.strip() for token in args.loss_names.split("+")]:
+        num_classes = max_train_pid + 1
+        logger.info(f"using raw pid labels for id loss: max_train_pid={max_train_pid}, num_classes={num_classes}")
+    args.track_memory_num_pids = max_train_pid + 1
     model = build_finetune_model(args, num_classes)
     logger.info('Total params: %2.fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
     if args.finetune:

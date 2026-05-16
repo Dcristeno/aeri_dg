@@ -146,6 +146,11 @@ class IRRA(nn.Module):
             id_labels = batch['pids'].long()
             image_logits = self.classifier(i_feats.float())
             text_logits = self.classifier(t_feats.float())
+            if id_labels.numel() > 0 and id_labels.max().item() >= image_logits.shape[1]:
+                raise ValueError(
+                    f"id label out of classifier range: max_label={id_labels.max().item()}, "
+                    f"num_classes={image_logits.shape[1]}"
+                )
             ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, id_labels)*self.args.id_loss_weight})
 
             image_pred = torch.argmax(image_logits, dim=1)
