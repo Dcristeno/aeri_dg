@@ -348,8 +348,8 @@ class IRRA(nn.Module):
             ret.update({'itc_loss':objectives.compute_itc(i_feats, t_feats, logit_scale)})
         
         if 'id' in self.current_task:
-            image_logits = self.classifier(i_feats.half()).float()
-            text_logits = self.classifier(t_feats.half()).float()
+            image_logits = self.classifier(i_feats.float())
+            text_logits = self.classifier(t_feats.float())
             ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, batch['pids'])*self.args.id_loss_weight})
 
             image_pred = torch.argmax(image_logits, dim=1)
