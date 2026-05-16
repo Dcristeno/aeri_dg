@@ -350,12 +350,24 @@ def build_finetune_train_loader(args, train_dataset, epoch=None):
                       num_workers=args.num_workers,
                       collate_fn=collate)
 
+def _uses_id_loss(args):
+    return "id" in [token.strip() for token in getattr(args, "loss_names", "").split("+")]
+
+
+def _set_id_class_mapping(args, train_dataset):
+    pid_classes = sorted({int(sample[0]) for sample in train_dataset})
+    args.id_pid_classes = pid_classes
+    return len(pid_classes)
+
+
 def build_dataloader(args, tranforms=None):
     logger = logging.getLogger("IRRA.dataset")
 
     num_workers = args.num_workers
     dataset = __factory[args.dataset_name](root=args.root_dir)
     num_classes = len(dataset.train_id_container)
+    if _uses_id_loss(args):
+        num_classes = _set_id_class_mapping(args, dataset.train)
     
     if args.training:
         train_transforms = build_transforms(img_size=args.img_size,
@@ -527,6 +539,9 @@ def build_zero_shot_loader(args, finetune=False):
                                 text_length=args.text_length)
         train_dataset = syn_dataset.train
         num_classes = len(syn_dataset.train)
+
+    if _uses_id_loss(args):
+        num_classes = _set_id_class_mapping(args, train_dataset)
 
     if not (finetune and getattr(args, "finetune_eval_mode", "test").lower() == "none"):
         val_img_loader = DataLoader(val_img_set,

@@ -21,6 +21,7 @@ class IRRA(nn.Module):
             self.classifier = nn.Linear(self.embed_dim, self.num_classes)
             nn.init.normal_(self.classifier.weight.data, std=0.001)
             nn.init.constant_(self.classifier.bias.data, val=0.0)
+            self._init_id_pid_lookup()
 
         if 'mlm' in args.loss_names:
             self.cross_attn = nn.MultiheadAttention(self.embed_dim,
@@ -62,6 +63,35 @@ class IRRA(nn.Module):
         loss_names = self.args.loss_names
         self.current_task = [l.strip() for l in loss_names.split('+')]
         print(f'Training Model with {self.current_task} tasks')
+
+    def _init_id_pid_lookup(self):
+        pid_classes = getattr(self.args, "id_pid_classes", None)
+        if not pid_classes:
+            return
+
+        pid_classes = [int(pid) for pid in pid_classes]
+        lookup = torch.full((max(pid_classes) + 1,), -1, dtype=torch.long)
+        lookup[torch.tensor(pid_classes, dtype=torch.long)] = torch.arange(len(pid_classes), dtype=torch.long)
+        try:
+            self.register_buffer("id_pid_lookup", lookup, persistent=False)
+        except TypeError:
+            self.register_buffer("id_pid_lookup", lookup)
+
+    def _map_id_labels(self, labels):
+        labels = labels.long()
+        if not hasattr(self, "id_pid_lookup"):
+            return labels
+
+        if labels.numel() == 0:
+            return labels
+        if labels.min().item() < 0 or labels.max().item() >= self.id_pid_lookup.shape[0]:
+            raise ValueError("Encountered pid outside the id classifier lookup range.")
+
+        mapped_labels = self.id_pid_lookup[labels]
+        if (mapped_labels < 0).any().item():
+            missing = torch.unique(labels[mapped_labels < 0]).detach().cpu().tolist()
+            raise ValueError(f"Encountered pids missing from id classifier lookup: {missing}")
+        return mapped_labels
     
     
     def cross_former(self, q, k, v):
@@ -113,15 +143,16 @@ class IRRA(nn.Module):
             ret.update({'cmpm_loss':objectives.compute_cmpm(i_feats, t_feats, batch['pids'])})
         
         if 'id' in self.current_task:
+            id_labels = self._map_id_labels(batch['pids'])
             image_logits = self.classifier(i_feats.float())
             text_logits = self.classifier(t_feats.float())
-            ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, batch['pids'])*self.args.id_loss_weight})
+            ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, id_labels)*self.args.id_loss_weight})
 
             image_pred = torch.argmax(image_logits, dim=1)
             text_pred = torch.argmax(text_logits, dim=1)
 
-            image_precision = (image_pred == batch['pids']).float().mean()
-            text_precision = (text_pred == batch['pids']).float().mean()
+            image_precision = (image_pred == id_labels).float().mean()
+            text_precision = (text_pred == id_labels).float().mean()
             ret.update({'img_acc': image_precision})
             ret.update({'txt_acc': text_precision})
         
