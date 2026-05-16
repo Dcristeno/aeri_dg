@@ -266,19 +266,6 @@ python adaptive_merge_checkpoints.py \
 
 With `--include_prefix base_model`, non-backbone heads such as FTA, bridge, and classifiers stay from the target checkpoint.
 
-To try very small random backbone perturbations around a strong checkpoint:
-
-```bash
-python perturb_checkpoint.py \
-  --checkpoint logs/merged_adaptive/<target>/best.pth \
-  --output_dir logs/perturb/aeri_backbone_noise \
-  --include_prefix base_model \
-  --sigmas 0.0005 0.001 0.002 \
-  --seeds 1 2 3
-```
-
-The noise is relative to each tensor's standard deviation. By default, 1D tensors such as bias and LayerNorm weights are skipped.
-
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.
