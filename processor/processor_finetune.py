@@ -42,6 +42,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "track_loss": AverageMeter(),
         "track_image_loss": AverageMeter(),
         "track_text_loss": AverageMeter(),
+        "moe_balance_loss": AverageMeter(),
+        "moe_image_entropy": AverageMeter(),
+        "moe_text_entropy": AverageMeter(),
+        "moe_ground_entropy": AverageMeter(),
         "pclip_loss": AverageMeter(),
         "pclip_clean_ccm": AverageMeter(),
         "pclip_noisy_ccm": AverageMeter(),
@@ -95,6 +99,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['track_loss'].update(ret.get('track_loss', 0), batch_size)
             meters['track_image_loss'].update(ret.get('track_image_loss', 0), batch_size)
             meters['track_text_loss'].update(ret.get('track_text_loss', 0), batch_size)
+            meters['moe_balance_loss'].update(ret.get('moe_balance_loss', 0), batch_size)
+            meters['moe_image_entropy'].update(ret.get('moe_image_entropy', 0), batch_size)
+            meters['moe_text_entropy'].update(ret.get('moe_text_entropy', 0), batch_size)
+            meters['moe_ground_entropy'].update(ret.get('moe_ground_entropy', 0), batch_size)
             meters['pclip_loss'].update(ret.get('pclip_loss', 0), batch_size)
             meters['pclip_clean_ccm'].update(ret.get('pclip_clean_ccm', 0), batch_size)
             meters['pclip_noisy_ccm'].update(ret.get('pclip_noisy_ccm', 0), batch_size)

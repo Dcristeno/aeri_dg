@@ -41,6 +41,11 @@ FTA_QUERY_CONDITION_SCALE="${FTA_QUERY_CONDITION_SCALE:-1.0}"
 FTA_LOSS_WEIGHT="${FTA_LOSS_WEIGHT:-1.0}"
 FTA_HARD_WEIGHT="${FTA_HARD_WEIGHT:-0.0}"
 FTA_HARD_MARGIN="${FTA_HARD_MARGIN:-0.05}"
+MOE_NUM_EXPERTS="${MOE_NUM_EXPERTS:-4}"
+MOE_HIDDEN_DIM="${MOE_HIDDEN_DIM:-256}"
+MOE_RESIDUAL_SCALE="${MOE_RESIDUAL_SCALE:-0.2}"
+MOE_DROPOUT="${MOE_DROPOUT:-0.0}"
+MOE_BALANCE_WEIGHT="${MOE_BALANCE_WEIGHT:-0.01}"
 
 args=(
   --name "${RUN_NAME}"
@@ -79,6 +84,11 @@ args=(
   --fta_loss_weight "${FTA_LOSS_WEIGHT}"
   --fta_hard_weight "${FTA_HARD_WEIGHT}"
   --fta_hard_margin "${FTA_HARD_MARGIN}"
+  --moe_num_experts "${MOE_NUM_EXPERTS}"
+  --moe_hidden_dim "${MOE_HIDDEN_DIM}"
+  --moe_residual_scale "${MOE_RESIDUAL_SCALE}"
+  --moe_dropout "${MOE_DROPOUT}"
+  --moe_balance_weight "${MOE_BALANCE_WEIGHT}"
   --lr 5e-6
   --lr2 5e-5
   --num_epoch 60

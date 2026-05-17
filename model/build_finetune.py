@@ -7,6 +7,47 @@ from collections import OrderedDict
 import torch.nn.functional as F
 
 
+class FeatureMoEAdapter(nn.Module):
+    def __init__(self, embed_dim, num_experts=4, hidden_dim=256, residual_scale=0.2, dropout=0.0):
+        super().__init__()
+        self.num_experts = int(num_experts)
+        self.residual_scale = float(residual_scale)
+        self.gate_norm = LayerNorm(embed_dim)
+        self.gate = nn.Linear(embed_dim, self.num_experts)
+        self.experts = nn.ModuleList([
+            nn.Sequential(
+                LayerNorm(embed_dim),
+                nn.Linear(embed_dim, hidden_dim),
+                QuickGELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, embed_dim),
+            )
+            for _ in range(self.num_experts)
+        ])
+
+        nn.init.normal_(self.gate.weight, std=0.001)
+        nn.init.constant_(self.gate.bias, val=0.0)
+        for expert in self.experts:
+            nn.init.normal_(expert[1].weight, std=0.001)
+            nn.init.constant_(expert[1].bias, val=0.0)
+            nn.init.normal_(expert[4].weight, std=0.001)
+            nn.init.constant_(expert[4].bias, val=0.0)
+
+    def forward(self, features):
+        module_dtype = self.gate.weight.dtype
+        x = features.to(dtype=module_dtype)
+        routing = F.softmax(self.gate(self.gate_norm(x)).float(), dim=-1)
+        expert_outputs = torch.stack([expert(x).float() for expert in self.experts], dim=1)
+        delta = torch.sum(routing.unsqueeze(-1) * expert_outputs, dim=1)
+        adapted = F.normalize(features.float() + self.residual_scale * delta, dim=-1)
+
+        load = routing.mean(dim=0)
+        target = torch.full_like(load, 1.0 / self.num_experts)
+        balance_loss = ((load - target) ** 2).sum() * self.num_experts
+        entropy = -(routing * torch.log(routing + 1e-8)).sum(dim=1).mean()
+        return adapted, balance_loss, entropy
+
+
 class IRRA(nn.Module):
     def __init__(self, args, num_classes=11003):
         super().__init__()
@@ -17,6 +58,21 @@ class IRRA(nn.Module):
         self.base_model, base_cfg = build_CLIP_from_openai_pretrained(args.pretrain_choice, args.img_size, args.stride_size)
         self.embed_dim = base_cfg['embed_dim']
         self.logit_scale = torch.ones([]) * (1 / args.temperature) 
+        if 'moe' in self.current_task:
+            self.image_moe_adapter = FeatureMoEAdapter(
+                self.embed_dim,
+                num_experts=args.moe_num_experts,
+                hidden_dim=args.moe_hidden_dim,
+                residual_scale=args.moe_residual_scale,
+                dropout=args.moe_dropout,
+            )
+            self.text_moe_adapter = FeatureMoEAdapter(
+                self.embed_dim,
+                num_experts=args.moe_num_experts,
+                hidden_dim=args.moe_hidden_dim,
+                residual_scale=args.moe_residual_scale,
+                dropout=args.moe_dropout,
+            )
         if 'id' in self.current_task:
             self.classifier = nn.Linear(self.embed_dim, self.num_classes)
             nn.init.normal_(self.classifier.weight.data, std=0.001)
@@ -237,13 +293,45 @@ class IRRA(nn.Module):
         text_query = base_query + condition_scale * text_delta
         return visual_query, text_query
 
+    def has_moe_adapter(self):
+        return hasattr(self, "image_moe_adapter") and hasattr(self, "text_moe_adapter")
+
+    def apply_moe_adapters(self, image_cls_feats, text_cls_feats, ground_cls_feats=None):
+        if not self.has_moe_adapter():
+            return image_cls_feats, text_cls_feats, ground_cls_feats, None
+
+        image_cls_feats, image_balance, image_entropy = self.image_moe_adapter(image_cls_feats)
+        text_cls_feats, text_balance, text_entropy = self.text_moe_adapter(text_cls_feats)
+        balance_terms = [image_balance, text_balance]
+        entropy_payload = {
+            "moe_image_entropy": image_entropy.detach(),
+            "moe_text_entropy": text_entropy.detach(),
+        }
+
+        if ground_cls_feats is not None:
+            ground_cls_feats, ground_balance, ground_entropy = self.image_moe_adapter(ground_cls_feats)
+            balance_terms.append(ground_balance)
+            entropy_payload["moe_ground_entropy"] = ground_entropy.detach()
+
+        moe_payload = {
+            "moe_balance_loss": torch.stack(balance_terms).mean() * self.args.moe_balance_weight,
+            **entropy_payload,
+        }
+        return image_cls_feats, text_cls_feats, ground_cls_feats, moe_payload
+
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
-        return image_feats[:, 0, :].float()
+        image_cls_feats = image_feats[:, 0, :].float()
+        if self.has_moe_adapter():
+            image_cls_feats, _, _ = self.image_moe_adapter(image_cls_feats)
+        return image_cls_feats
 
     def encode_text(self, text):
         x = self.base_model.encode_text(text)
-        return x[torch.arange(x.shape[0]), text.argmax(dim=-1)].float()
+        text_cls_feats = x[torch.arange(x.shape[0]), text.argmax(dim=-1)].float()
+        if self.has_moe_adapter():
+            text_cls_feats, _, _ = self.text_moe_adapter(text_cls_feats)
+        return text_cls_feats
     
     def compute_fuzzy_membership(self, A, B):  # compute_fuzzy_membership v3
 
@@ -291,6 +379,10 @@ class IRRA(nn.Module):
         if ground_image_feats is not None:
             g_i_feats = ground_image_feats[:, 0, :].float()
         t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
+
+        i_feats, t_feats, g_i_feats, moe_payload = self.apply_moe_adapters(i_feats, t_feats, g_i_feats)
+        if moe_payload is not None:
+            ret.update(moe_payload)
 
         logit_scale = self.logit_scale
 
