@@ -27,15 +27,6 @@ class IRRA(nn.Module):
         )
         self.embed_dim = base_cfg["embed_dim"]
         self.logit_scale = torch.ones([]) * (1 / args.temperature)
-        self.bridge_delta_head = None
-        if "bridge" in self.current_task and getattr(args, "bridge_mode", "plain").lower() == "differential":
-            hidden_dim = max(self.embed_dim // 2, 128)
-            self.bridge_delta_head = nn.Sequential(
-                nn.LayerNorm(self.embed_dim),
-                nn.Linear(self.embed_dim, hidden_dim),
-                nn.GELU(),
-                nn.Linear(hidden_dim, self.embed_dim),
-            )
         if "id" in self.current_task:
             self.classifier = nn.Linear(self.embed_dim, self.num_classes)
             nn.init.normal_(self.classifier.weight.data, std=0.001)
@@ -114,27 +105,6 @@ class IRRA(nn.Module):
                 gate = gate.detach()
                 bridge_loss = (gate * pair_loss).mean()
                 ret["bridge_gate"] = gate.mean()
-            elif bridge_mode == "differential":
-                if self.bridge_delta_head is None:
-                    raise ValueError("bridge_mode='differential' requires bridge_delta_head to be initialized.")
-                predicted_delta = self.bridge_delta_head(ground_feats.detach())
-                differential_teacher = ground_feats.detach() + predicted_delta
-                differential_pair_loss = 1.0 - nn.functional.cosine_similarity(
-                    aerial_feats,
-                    differential_teacher,
-                    dim=-1,
-                )
-                observed_delta = aerial_feats.detach() - ground_feats.detach()
-                delta_consistency_loss = 1.0 - nn.functional.cosine_similarity(
-                    predicted_delta,
-                    observed_delta,
-                    dim=-1,
-                )
-                bridge_loss = (
-                    differential_pair_loss.mean()
-                    + self.args.bridge_delta_weight * delta_consistency_loss.mean()
-                )
-                ret["bridge_delta_term"] = delta_consistency_loss.mean()
             else:
                 raise ValueError(f"Unsupported bridge_mode: {self.args.bridge_mode}")
             ret["bridge_loss"] = bridge_loss * self.args.bridge_loss_weight

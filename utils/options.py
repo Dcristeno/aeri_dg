@@ -28,10 +28,9 @@ def get_args():
     parser.add_argument("--loss_names", default="base", help="training losses: base, base+id, or base+id+bridge")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="weight for identity classification loss")
     parser.add_argument("--bridge_loss_weight", type=float, default=0.5, help="weight for detached ground-to-aerial bridge loss")
-    parser.add_argument("--bridge_mode", type=str, default="plain", help="bridge loss mode: plain, gated, or differential")
+    parser.add_argument("--bridge_mode", type=str, default="plain", help="bridge loss mode: plain or gated")
     parser.add_argument("--bridge_gate_min", type=float, default=0.2, help="minimum confidence for gated bridge loss")
     parser.add_argument("--bridge_gate_tau", type=float, default=0.1, help="temperature for gated bridge confidence")
-    parser.add_argument("--bridge_delta_weight", type=float, default=0.1, help="weight for differential bridge residual consistency")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

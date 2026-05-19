@@ -18,7 +18,6 @@ BRIDGE_LOSS_WEIGHT="${BRIDGE_LOSS_WEIGHT:-0.5}"
 BRIDGE_MODE="${BRIDGE_MODE:-plain}"
 BRIDGE_GATE_MIN="${BRIDGE_GATE_MIN:-0.2}"
 BRIDGE_GATE_TAU="${BRIDGE_GATE_TAU:-0.1}"
-BRIDGE_DELTA_WEIGHT="${BRIDGE_DELTA_WEIGHT:-0.1}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-2}"
 TRAIN_SAMPLE_STRATEGY="${TRAIN_SAMPLE_STRATEGY:-random}"
 
@@ -36,7 +35,6 @@ args=(
   --bridge_mode "${BRIDGE_MODE}"
   --bridge_gate_min "${BRIDGE_GATE_MIN}"
   --bridge_gate_tau "${BRIDGE_GATE_TAU}"
-  --bridge_delta_weight "${BRIDGE_DELTA_WEIGHT}"
   --train_samples_per_id "${TRAIN_SAMPLES_PER_ID}"
   --train_sample_strategy "${TRAIN_SAMPLE_STRATEGY}"
   --lr 5e-6

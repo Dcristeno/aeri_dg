@@ -81,24 +81,6 @@ bash finetune.sh
 
 `BRIDGE_MODE=plain` is still the default and matches the current best line.
 
-To try the Generative Photography inspired differential view bridge, run:
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_diff_dw01_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_diff_dw01_seed2' \
-BRIDGE_MODE='differential' \
-BRIDGE_DELTA_WEIGHT=0.1 \
-SEED=2 \
-bash finetune.sh
-```
-
-This mode follows the reusable part of
-`pandayuanyu/generative-photography`: instead of importing the diffusion
-pipeline, it borrows the camera-difference idea and treats the paired
-`ground -> aerial` shift as a view residual. A small residual head predicts
-that shift from detached ground features, then bridges aerial features toward
-`ground + predicted_delta`.
-
 On the default server setup, this is equivalent to:
 
 ```bash
