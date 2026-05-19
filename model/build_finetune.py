@@ -130,10 +130,11 @@ class IRRA(nn.Module):
                     observed_delta,
                     dim=-1,
                 )
-                bridge_loss = (
+                bridge_loss = pair_loss.mean() + self.args.bridge_delta_weight * (
                     differential_pair_loss.mean()
-                    + self.args.bridge_delta_weight * delta_consistency_loss.mean()
+                    + delta_consistency_loss.mean()
                 )
+                ret["bridge_delta_pair"] = differential_pair_loss.mean()
                 ret["bridge_delta_term"] = delta_consistency_loss.mean()
             else:
                 raise ValueError(f"Unsupported bridge_mode: {self.args.bridge_mode}")
