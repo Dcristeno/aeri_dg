@@ -81,23 +81,6 @@ bash finetune.sh
 
 `BRIDGE_MODE=plain` is still the default and matches the current best line.
 
-To make the bridge noise-aware, inspired by NLPrompt's clean/noisy sample split, run:
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_noise_gated_m02_t01_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_noise_gated_m02_t01_seed2' \
-BRIDGE_MODE='noise_gated' \
-BRIDGE_GATE_MIN=0.2 \
-BRIDGE_GATE_TAU=0.1 \
-BRIDGE_NOISE_MIN=0.2 \
-BRIDGE_NOISE_TAU=0.1 \
-BRIDGE_NOISE_THRESHOLD=0.0 \
-SEED=2 \
-bash finetune.sh
-```
-
-`noise_gated` keeps the ground-vs-aerial teacher gate, then multiplies it by a sample reliability score derived from the stronger of ground-text and aerial-text similarity. Low-reliability samples receive weaker bridge supervision.
-
 On the default server setup, this is equivalent to:
 
 ```bash

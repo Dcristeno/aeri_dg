@@ -65,14 +65,3 @@ epoch 60 的代表性训练 loss：
 目标：在保留 ground bridge 主线的前提下，让 ground teacher 的监督强度根据样本置信度自适应变化。若 `ground-text` 相似度明显高于 `aerial-text`，增强 bridge；否则减弱 bridge，避免 ground teacher 过度拉动已经较可靠的 aerial feature。
 
 结果跑完后追加到 `docs/runs.csv`，仍然用 best epoch 指标比较。
-
-## 2026-05-19 - 待跑：noise-gated bridge
-
-- 分支：`aeri-k2-ground-bridge-lite`
-- 参考代码：`qunovo/NLPrompt`
-- 对比基准：`aeri_k2_ground_bridge_lite_w2_seed2`
-- 建议实验名：`aeri_k2_ground_bridge_noise_gated_m02_t01_seed2`
-- 建议配置：`LOSS_NAMES=base+id+bridge`，`BRIDGE_MODE=noise_gated`
-- 建议参数：`BRIDGE_GATE_MIN=0.2`，`BRIDGE_GATE_TAU=0.1`，`BRIDGE_NOISE_MIN=0.2`，`BRIDGE_NOISE_TAU=0.1`，`BRIDGE_NOISE_THRESHOLD=0.0`
-
-目标：借鉴 NLPrompt 对 clean/noisy 样本分开处理的思路，但先不引入完整 OT 划分。这里用 `max(sim_gt, sim_at)` 作为样本可靠性，疑似低可靠样本降低 bridge 监督强度，避免 noisy caption/弱匹配样本破坏 aerial-ground 对齐。

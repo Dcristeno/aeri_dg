@@ -95,24 +95,13 @@ class IRRA(nn.Module):
             bridge_mode = getattr(self.args, "bridge_mode", "plain").lower()
             if bridge_mode == "plain":
                 bridge_loss = pair_loss.mean()
-            elif bridge_mode in {"gated", "noise_gated"}:
+            elif bridge_mode == "gated":
                 aerial_text_sim = nn.functional.cosine_similarity(aerial_feats, text_feats, dim=-1)
                 ground_text_sim = nn.functional.cosine_similarity(ground_feats.detach(), text_feats, dim=-1)
                 gate_tau = max(float(self.args.bridge_gate_tau), 1e-6)
                 gate_min = float(self.args.bridge_gate_min)
                 gate_min = min(max(gate_min, 0.0), 1.0)
                 gate = gate_min + (1.0 - gate_min) * torch.sigmoid((ground_text_sim - aerial_text_sim) / gate_tau)
-                if bridge_mode == "noise_gated":
-                    reliability_score = torch.maximum(ground_text_sim, aerial_text_sim)
-                    noise_tau = max(float(self.args.bridge_noise_tau), 1e-6)
-                    noise_min = float(self.args.bridge_noise_min)
-                    noise_min = min(max(noise_min, 0.0), 1.0)
-                    noise_threshold = float(self.args.bridge_noise_threshold)
-                    reliability = noise_min + (1.0 - noise_min) * torch.sigmoid(
-                        (reliability_score - noise_threshold) / noise_tau
-                    )
-                    ret["bridge_reliability"] = reliability.detach().mean()
-                    gate = gate * reliability
                 gate = gate.detach()
                 bridge_loss = (gate * pair_loss).mean()
                 ret["bridge_gate"] = gate.mean()
