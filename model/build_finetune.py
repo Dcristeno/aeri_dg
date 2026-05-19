@@ -87,11 +87,26 @@ class IRRA(nn.Module):
             "base_loss": base_loss,
         }
         if "bridge" in self.current_task:
-            bridge_loss = 1.0 - nn.functional.cosine_similarity(
+            pair_loss = 1.0 - nn.functional.cosine_similarity(
                 aerial_feats,
                 ground_feats.detach(),
                 dim=-1,
-            ).mean()
+            )
+            bridge_mode = getattr(self.args, "bridge_mode", "plain").lower()
+            if bridge_mode == "plain":
+                bridge_loss = pair_loss.mean()
+            elif bridge_mode == "gated":
+                aerial_text_sim = nn.functional.cosine_similarity(aerial_feats, text_feats, dim=-1)
+                ground_text_sim = nn.functional.cosine_similarity(ground_feats.detach(), text_feats, dim=-1)
+                gate_tau = max(float(self.args.bridge_gate_tau), 1e-6)
+                gate_min = float(self.args.bridge_gate_min)
+                gate_min = min(max(gate_min, 0.0), 1.0)
+                gate = gate_min + (1.0 - gate_min) * torch.sigmoid((ground_text_sim - aerial_text_sim) / gate_tau)
+                gate = gate.detach()
+                bridge_loss = (gate * pair_loss).mean()
+                ret["bridge_gate"] = gate.mean()
+            else:
+                raise ValueError(f"Unsupported bridge_mode: {self.args.bridge_mode}")
             ret["bridge_loss"] = bridge_loss * self.args.bridge_loss_weight
 
         if "id" in self.current_task:

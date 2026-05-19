@@ -67,6 +67,20 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+To replace the plain bridge with confidence-gated bridge supervision, run:
+
+```bash
+RUN_NAME='aeri_k2_ground_bridge_gated_m02_t01_seed2' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_gated_m02_t01_seed2' \
+BRIDGE_MODE='gated' \
+BRIDGE_GATE_MIN=0.2 \
+BRIDGE_GATE_TAU=0.1 \
+SEED=2 \
+bash finetune.sh
+```
+
+`BRIDGE_MODE=plain` is still the default and matches the current best line.
+
 On the default server setup, this is equivalent to:
 
 ```bash

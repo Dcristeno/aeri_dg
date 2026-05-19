@@ -53,3 +53,15 @@ epoch 60 的代表性训练 loss：
 - 最后阶段单轮耗时约 `0.47 min`。
 - 训练速度约 `135 samples/s`。
 - 后期学习率已经很小，指标基本可以视为收敛/平台期。
+
+## 2026-05-19 - 待跑：confidence-gated bridge
+
+- 分支：`aeri-k2-ground-bridge-lite`
+- 对比基准：`aeri_k2_ground_bridge_lite_w2_seed2`
+- 建议实验名：`aeri_k2_ground_bridge_gated_m02_t01_seed2`
+- 建议配置：`LOSS_NAMES=base+id+bridge`，`BRIDGE_MODE=gated`
+- 建议参数：`BRIDGE_GATE_MIN=0.2`，`BRIDGE_GATE_TAU=0.1`
+
+目标：在保留 ground bridge 主线的前提下，让 ground teacher 的监督强度根据样本置信度自适应变化。若 `ground-text` 相似度明显高于 `aerial-text`，增强 bridge；否则减弱 bridge，避免 ground teacher 过度拉动已经较可靠的 aerial feature。
+
+结果跑完后追加到 `docs/runs.csv`，仍然用 best epoch 指标比较。

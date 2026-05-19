@@ -24,6 +24,29 @@
 - ID 分类 loss 作用在 aerial、ground、text 三类特征上
 - bridge loss 使用 detached ground feature 作为 teacher，对齐 aerial feature
 
+## 当前开发方向
+
+分支：`aeri-k2-ground-bridge-lite`
+
+当前不再继续推进 CFA。后续沿已有 `bridge` 模块做增强，第一版为 confidence-gated bridge：
+
+- 默认 `BRIDGE_MODE=plain`，完全保持当前最好结果对应的普通 bridge。
+- 实验模式 `BRIDGE_MODE=gated`，根据 `ground-text` 与 `aerial-text` 的相对相似度动态调节 bridge 强度。
+- gate 公式为 `min_conf + (1 - min_conf) * sigmoid((sim_gt - sim_at) / tau)`，并 detach gate，避免模型通过操纵 gate 逃避 bridge 监督。
+- 当前建议参数：`BRIDGE_GATE_MIN=0.2`，`BRIDGE_GATE_TAU=0.1`。
+
+建议云端首跑：
+
+```bash
+RUN_NAME='aeri_k2_ground_bridge_gated_m02_t01_seed2' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_gated_m02_t01_seed2' \
+BRIDGE_MODE='gated' \
+BRIDGE_GATE_MIN=0.2 \
+BRIDGE_GATE_TAU=0.1 \
+SEED=2 \
+bash finetune.sh
+```
+
 默认入口：
 
 ```bash
@@ -58,7 +81,7 @@ epoch 60 的最终验证结果：
 | t2i | 47.924 | 66.488 | 75.004 | 189.415 | 46.152 | 33.302 |
 
 更完整的文字记录见 `docs/EXP_LOG.md`，实验横向比较表见 `docs/runs.csv`。
-`runs.csv` 应优先记录能支持实验间比较的字段，例如 branch、rank、current_best、compare_to、main_change、best_epoch、best R1/R5/R10/RSum/mAP/mINP、delta_best_r1、关键 loss 权重和 SwanLab 链接；不要用 last/final epoch 指标作为主比较字段。
+`runs.csv` 应优先记录能支持实验间比较的字段，例如 branch、rank、current_best、compare_to、main_change、best_epoch、best R1/R5/R10/RSum/mAP/mINP、delta_best_r1、bridge_mode、关键 loss 权重和 SwanLab 链接；不要用 last/final epoch 指标作为主比较字段。
 
 维护规则：任何实验记录、结果说明或代码修改说明都要写明所属分支，方便后续 merge 时判断来源。
 
