@@ -29,7 +29,6 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "id_loss": AverageMeter(),
         "bridge_loss": AverageMeter(),
         "bridge_gate": AverageMeter(),
-        "bridge_delta_pair": AverageMeter(),
         "bridge_delta_term": AverageMeter(),
     }
 
@@ -66,7 +65,6 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters["id_loss"].update(ret.get("id_loss", 0), batch_size)
             meters["bridge_loss"].update(ret.get("bridge_loss", 0), batch_size)
             meters["bridge_gate"].update(ret.get("bridge_gate", 0), batch_size)
-            meters["bridge_delta_pair"].update(ret.get("bridge_delta_pair", 0), batch_size)
             meters["bridge_delta_term"].update(ret.get("bridge_delta_term", 0), batch_size)
 
             optimizer.zero_grad()
