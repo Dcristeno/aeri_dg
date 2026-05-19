@@ -62,7 +62,7 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
         with torch.no_grad():
             if epoch % 1 == 0: 
                 logger.info('Reconstruct the train loader')
-                train_loader = build_filter_loader(args, trainset)
+                train_loader = build_filter_loader(args, trainset, epoch=epoch)
         
         start_time = time.time()
         for meter in meters.values():

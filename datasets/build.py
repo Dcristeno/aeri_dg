@@ -643,7 +643,7 @@ def split_finetune_train_and_val(train_dataset, val_ratio, val_seed):
     }
     return train_split, val_split
 
-def build_filter_loader(args, dataset):
+def build_filter_loader(args, dataset, epoch=None):
     logger = logging.getLogger("IRRA.dataset")
 
     num_workers = args.num_workers
@@ -651,7 +651,23 @@ def build_filter_loader(args, dataset):
     train_transforms = build_transforms(img_size=args.img_size,
                                             aug=args.img_aug,
                                             is_train=True)
-    train_set = FilterDataset(dataset,
+    sampled_dataset = sample_train_dataset_per_pid(
+        dataset,
+        args.train_samples_per_id,
+        epoch_seed=epoch,
+        strategy=args.train_sample_strategy,
+        mid_ratio=args.train_sample_mid_ratio,
+        representative_weight=args.train_sample_representative_weight,
+        diversity_weight=args.train_sample_diversity_weight,
+        mid_weight=args.train_sample_mid_weight,
+    )
+    if getattr(args, "train_samples_per_id", 0) > 0:
+        logger.info(
+            f'Epoch[{epoch}] rebuilt SDM filter loader with per-id sampling: '
+            f'strategy={args.train_sample_strategy}, k={args.train_samples_per_id}, samples={len(sampled_dataset)}'
+        )
+
+    train_set = FilterDataset(sampled_dataset,
                             train_transforms,
                             text_length=args.text_length,
                             use_ground=_uses_ground_line(args))
