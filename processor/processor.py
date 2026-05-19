@@ -46,9 +46,12 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
 
-    best_top1_0 = 0.0
-    best_top1_1 = 0.0
-    best_top1_2 = 0.0
+    best_r1_0 = 0.0
+    best_r1_1 = 0.0
+    best_r1_2 = 0.0
+    best_epoch_0 = None
+    best_epoch_1 = None
+    best_epoch_2 = None
 
     # train
     active_tasks = {token.strip() for token in args.loss_names.split("+") if token.strip()}
@@ -183,35 +186,47 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
                 .format(epoch, time_per_batch,
                         train_loader.batch_size / time_per_batch))
         if epoch % eval_period == 0:
-            logger.info(f"best R1: CUHK {best_top1_0}, ICFG {best_top1_1}, RSTP {best_top1_2}")
+            logger.info(f"best R1: val0 {best_r1_0}, val1 {best_r1_1}, val2 {best_r1_2}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 eval_model = model.module.eval()
-                top1_0 = evaluator0.eval(eval_model) if evaluator0 is not None else best_top1_0
-                top1_1 = evaluator1.eval(eval_model) if evaluator1 is not None else best_top1_1
-                top1_2 = evaluator2.eval(eval_model) if evaluator2 is not None else best_top1_2
+                metrics0 = evaluator0.eval(eval_model, return_details=True) if evaluator0 is not None else None
+                metrics1 = evaluator1.eval(eval_model, return_details=True) if evaluator1 is not None else None
+                metrics2 = evaluator2.eval(eval_model, return_details=True) if evaluator2 is not None else None
+                r1_0 = metrics0["t2i_R1"] if metrics0 is not None else best_r1_0
+                r1_1 = metrics1["t2i_R1"] if metrics1 is not None else best_r1_1
+                r1_2 = metrics2["t2i_R1"] if metrics2 is not None else best_r1_2
                 if swanlab_run is not None:
-                    swanlab_run.log({
-                        "epoch": epoch,
-                        "val0/t2i_R1": top1_0,
-                        "val1/t2i_R1": top1_1,
-                        "val2/t2i_R1": top1_2,
-                    })
+                    eval_payload = {"epoch": epoch}
+                    if metrics0 is not None:
+                        eval_payload.update({f"val0/{k}": v for k, v in metrics0.items()})
+                    if metrics1 is not None:
+                        eval_payload.update({f"val1/{k}": v for k, v in metrics1.items()})
+                    if metrics2 is not None:
+                        eval_payload.update({f"val2/{k}": v for k, v in metrics2.items()})
+                    swanlab_run.log(eval_payload)
                 torch.cuda.empty_cache()
-                if best_top1_0 < top1_0:
-                    best_top1_0 = top1_0
+                if best_r1_0 < r1_0:
+                    best_r1_0 = r1_0
                     arguments["epoch"] = epoch
+                    best_epoch_0 = epoch
                     checkpointer.save("best0", **arguments)
-                if best_top1_1 < top1_1:
-                    best_top1_1 = top1_1
+                if best_r1_1 < r1_1:
+                    best_r1_1 = r1_1
                     arguments["epoch"] = epoch
+                    best_epoch_1 = epoch
                     checkpointer.save("best1", **arguments)
-                if best_top1_2 < top1_2:
-                    best_top1_2 = top1_2
+                if best_r1_2 < r1_2:
+                    best_r1_2 = r1_2
                     arguments["epoch"] = epoch
+                    best_epoch_2 = epoch
                     checkpointer.save("best2", **arguments)
     if get_rank() == 0:
-        logger.info(f"best R1: {best_top1_0}, {best_top1_1}, {best_top1_2} at epoch {arguments.get('epoch', 0)}")
+        logger.info(
+            f"best R1: val0 {best_r1_0} at epoch {best_epoch_0}, "
+            f"val1 {best_r1_1} at epoch {best_epoch_1}, "
+            f"val2 {best_r1_2} at epoch {best_epoch_2}"
+        )
 
 
 def do_inference(model, test_img_loader, test_txt_loader, swanlab_run=None):
