@@ -24,36 +24,6 @@
 - ID 分类 loss 作用在 aerial、ground、text 三类特征上
 - bridge loss 使用 detached ground feature 作为 teacher，对齐 aerial feature
 
-## 当前开发改动
-
-分支：`aeri-k2-ground-bridge-lite`
-
-本次从 `C:\computer science\code\Scientific research\AERI-PEDES-main\CFAN-clean` 中抽取 CDA 和 FTA 的核心思路，做成一个轻量融合模块 `cfa`，用于当前项目的后续实验。
-
-设计取舍：
-
-- CDA 部分不直接搬原始大模块，而是保留“选择式对齐”的精华：当 text-aerial 更可靠时偏向 direct aerial-text SDM；当 text-ground 更可靠时偏向 ground bridge SDM。
-- FTA 部分保留“少量 query 聚合 token 级细粒度特征 + fuzzy membership 加权相似度”的思路，但去掉原分支中 MLM、proto、track 等无关逻辑。
-- 新模块通过 `LOSS_NAMES=base+id+bridge+cfa` 开启；默认 `base+id+bridge` 不变，便于和当前最好结果比较。
-
-建议云端首跑命令：
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_lite_cfa_w1_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_lite_cfa_w1_seed2' \
-LOSS_NAMES='base+id+bridge+cfa' \
-SEED=2 \
-bash finetune.sh
-```
-
-可调参数：
-
-- `CFA_LOSS_WEIGHT`：整体权重，默认 `1.0`
-- `CFA_SELECTIVE_WEIGHT`：CDA-style 选择式 bridge SDM 权重，默认 `1.0`
-- `CFA_FTA_WEIGHT`：FTA-style fuzzy query matching 权重，默认 `0.5`
-- `CFA_NUM_QUERY`：query 数量，默认 `4`
-- `CFA_QUERY_CONDITION_SCALE`：样本条件 query delta 缩放，默认 `1.0`
-
 默认入口：
 
 ```bash

@@ -67,18 +67,6 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
-To enable the lightweight CDA+FTA fusion module extracted from `CFAN-clean`, run:
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_lite_cfa_w1_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_lite_cfa_w1_seed2' \
-LOSS_NAMES='base+id+bridge+cfa' \
-SEED=2 \
-bash finetune.sh
-```
-
-The `cfa` token adds a compact CDA-style selective bridge SDM term and an FTA-style fuzzy query matching term. Keep `base+id+bridge` as the control when comparing against the current best run.
-
 On the default server setup, this is equivalent to:
 
 ```bash
