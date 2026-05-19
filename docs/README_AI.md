@@ -35,6 +35,13 @@
 - gate 公式为 `min_conf + (1 - min_conf) * sigmoid((sim_gt - sim_at) / tau)`，并 detach gate，避免模型通过操纵 gate 逃避 bridge 监督。
 - 当前建议参数：`BRIDGE_GATE_MIN=0.2`，`BRIDGE_GATE_TAU=0.1`。
 
+参考 NLPrompt 官方代码 `qunovo/NLPrompt` 后，新增第二版 `BRIDGE_MODE=noise_gated`。NLPrompt 的核心是先区分 clean/noisy 样本，再对 noisy 样本使用更鲁棒的 MAE-style loss；当前项目先不引入完整 OT/Sinkhorn 划分，而是把这个思想简化为 bridge 的样本可靠性门控：
+
+- `gated` 只判断 ground teacher 是否比 aerial 更可靠；
+- `noise_gated` 在此基础上再判断样本本身是否可靠；
+- reliability 使用 `max(sim_gt, sim_at)`，即 ground-text 和 aerial-text 中更强的一条作为样本可信度；
+- 低可靠样本会减弱 bridge 监督，避免疑似噪声 caption/图像对强行拉动 aerial feature。
+
 建议云端首跑：
 
 ```bash
@@ -43,6 +50,21 @@ SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_gated_m02_t01_seed2' \
 BRIDGE_MODE='gated' \
 BRIDGE_GATE_MIN=0.2 \
 BRIDGE_GATE_TAU=0.1 \
+SEED=2 \
+bash finetune.sh
+```
+
+参考 NLPrompt 思路的噪声感知版本：
+
+```bash
+RUN_NAME='aeri_k2_ground_bridge_noise_gated_m02_t01_seed2' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_noise_gated_m02_t01_seed2' \
+BRIDGE_MODE='noise_gated' \
+BRIDGE_GATE_MIN=0.2 \
+BRIDGE_GATE_TAU=0.1 \
+BRIDGE_NOISE_MIN=0.2 \
+BRIDGE_NOISE_TAU=0.1 \
+BRIDGE_NOISE_THRESHOLD=0.0 \
 SEED=2 \
 bash finetune.sh
 ```
