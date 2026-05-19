@@ -21,6 +21,11 @@ from utils.metrics import Evaluator
 from utils.options import get_args
 from utils.comm import get_rank, synchronize
 
+try:
+    import swanlab
+except ImportError:
+    swanlab = None
+
 
 def set_seed(seed=0):
     torch.manual_seed(seed)
@@ -34,7 +39,7 @@ def set_seed(seed=0):
 
 if __name__ == '__main__':
     args = get_args()
-    set_seed(1+get_rank())
+    set_seed(args.seed + get_rank())
     name = args.name
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
@@ -54,7 +59,13 @@ if __name__ == '__main__':
     save_train_configs(args.output_dir, args)
 
     # get image-text pair datasets dataloader
-    trainset ,train_loader, val_img_loader0, val_txt_loader0, val_img_loader1, val_txt_loader1, val_img_loader2, val_txt_loader2, num_classes = build_zero_shot_loader(args)
+    loader_outputs = build_zero_shot_loader(args)
+    if len(loader_outputs) == 5:
+        trainset, train_loader, val_img_loader0, val_txt_loader0, num_classes = loader_outputs
+        val_img_loader1 = val_txt_loader1 = None
+        val_img_loader2 = val_txt_loader2 = None
+    else:
+        trainset, train_loader, val_img_loader0, val_txt_loader0, val_img_loader1, val_txt_loader1, val_img_loader2, val_txt_loader2, num_classes = loader_outputs
     if args.nam:
         model = build_model(args, num_classes)
     else:
@@ -67,7 +78,7 @@ if __name__ == '__main__':
             refine_k = k.replace('module.','')
             param_dict[refine_k] = param_dict[k].detach().clone()
             del param_dict[k]
-        model.load_state_dict(param_dict)
+        model.load_state_dict(param_dict, False)
     # model = model.float()
     model.cuda()
     model = nn.DataParallel(model)
@@ -85,9 +96,20 @@ if __name__ == '__main__':
 
     is_master = get_rank() == 0
     checkpointer = Checkpointer(model, optimizer, scheduler, args.output_dir, is_master)
-    evaluator0 = Evaluator(val_img_loader0, val_txt_loader0)
-    evaluator1 = Evaluator(val_img_loader1, val_txt_loader1)
-    evaluator2 = Evaluator(val_img_loader2, val_txt_loader2)
+    evaluator0 = Evaluator(val_img_loader0, val_txt_loader0) if val_img_loader0 is not None and val_txt_loader0 is not None else None
+    evaluator1 = Evaluator(val_img_loader1, val_txt_loader1) if val_img_loader1 is not None and val_txt_loader1 is not None else None
+    evaluator2 = Evaluator(val_img_loader2, val_txt_loader2) if val_img_loader2 is not None and val_txt_loader2 is not None else None
+    swanlab_run = None
+    if args.use_swanlab and get_rank() == 0:
+        if swanlab is None:
+            raise ImportError("SwanLab is not installed. Please run `pip install swanlab` before using --use_swanlab.")
+        swanlab_run = swanlab.init(
+            project=args.swanlab_project,
+            experiment_name=args.swanlab_experiment or name,
+            config=vars(args),
+            mode=args.swanlab_mode,
+            logdir=args.output_dir,
+        )
 
     start_epoch = 1
     if args.resume:
@@ -95,6 +117,6 @@ if __name__ == '__main__':
         start_epoch = checkpoint['epoch']
 
     if args.nam:
-        do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,evaluator2, optimizer, scheduler, checkpointer, trainset)
+        do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,evaluator2, optimizer, scheduler, checkpointer, trainset, swanlab_run=swanlab_run)
     else:
         do_train(start_epoch, args, model, train_loader, evaluator0,evaluator1,evaluator2, optimizer, scheduler, checkpointer, trainset)

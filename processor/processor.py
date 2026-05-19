@@ -13,7 +13,7 @@ from prettytable import PrettyTable
 import torch.nn.functional as F
 
 def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,evaluator2, optimizer,
-             scheduler, checkpointer, trainset):
+             scheduler, checkpointer, trainset, swanlab_run=None):
 
     log_period = args.log_period
     eval_period = args.eval_period
@@ -34,6 +34,8 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
     meters = {
         "loss": AverageMeter(),
         "sdm_loss": AverageMeter(),
+        "cda_loss": AverageMeter(),
+        "fta_loss": AverageMeter(),
         "itc_loss": AverageMeter(),
         "id_loss": AverageMeter(),
         "mlm_loss": AverageMeter(),
@@ -49,6 +51,13 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
     best_top1_2 = 0.0
 
     # train
+    active_tasks = {token.strip() for token in args.loss_names.split("+") if token.strip()}
+    if not active_tasks:
+        active_tasks = {"sdm"}
+    if "base" in active_tasks:
+        active_tasks.add("sdm")
+    use_ground_line = bool(active_tasks & {"cda", "bridge", "ga_bridge"})
+
     for epoch in range(start_epoch, num_epoch + 1):
         with torch.no_grad():
             if epoch % 1 == 0: 
@@ -66,25 +75,74 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             image = batch['images'].cuda()
             text = batch['caption_ids'].cuda()
             ori_text = batch['caption_ids_ori'].cuda()
+            ground_image = None
+            if use_ground_line:
+                if 'ground_imgs' not in batch:
+                    raise ValueError("loss_names includes cda/bridge, but the train loader did not provide ground_imgs.")
+                ground_image = batch['ground_imgs'].cuda()
 
-            i_feats, text_feats,fu_i_feats,fu_t_feats = model(image, text, ori_text)
+            model_outputs = model(image, text, ori_text, ground_image)
+            if len(model_outputs) == 5:
+                i_feats, text_feats, fu_i_feats, fu_t_feats, ground_feats = model_outputs
+            else:
+                i_feats, text_feats, fu_i_feats, fu_t_feats = model_outputs
+                ground_feats = None
 
             caption_ids = text
             t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
-            logit_scale = torch.ones([]) * (1 / args.temperature) 
+            i_cls_feats = i_feats[:, 0, :].float()
+            logit_scale = model.module.logit_scale.to(i_cls_feats.device)
             
-            loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale)
+            total_loss = i_cls_feats.sum() * 0.0
+            loss_sdm = None
+            if 'sdm' in active_tasks:
+                loss_sdm = objectives.compute_sdm(i_cls_feats, t_feats, batch['pids'].cuda(), logit_scale)
+                total_loss = total_loss + loss_sdm
             
-            total_loss = loss_sdm
+            loss_cda = None
+            if 'cda' in active_tasks:
+                if ground_feats is None:
+                    raise ValueError("cda loss requires ground image features.")
+                loss_cda = objectives.compute_selective_align_loss(
+                    i_cls_feats,
+                    ground_feats[:, 0, :].float(),
+                    t_feats,
+                    batch['pids'].cuda(),
+                    logit_scale,
+                ) * getattr(args, "cda_loss_weight", 1.0)
+                total_loss = total_loss + loss_cda
+
+            loss_fta = None
+            if 'fta' in active_tasks:
+                loss_fta = model.module.compute_fta_loss(
+                    i_feats,
+                    text_feats,
+                    i_cls_feats,
+                    t_feats,
+                    batch['pids'].cuda(),
+                    logit_scale,
+                )
+                total_loss = total_loss + loss_fta
+
             with torch.no_grad():
                 similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(fu_t_feats,dim=-1), F.normalize(fu_i_feats[:,1:,:],dim=-1)])
                 similarity_matrix = similarity_matrix.max(-1)[0]
                 for idx, sim in zip(batch['image_ids'].data, similarity_matrix):
-                    trainset[idx][-1] = sim.data.cpu().numpy()
+                    sample_idx = int(idx)
+                    sim_value = sim.data.cpu().numpy()
+                    try:
+                        trainset[sample_idx][-1] = sim_value
+                    except TypeError:
+                        trainset[sample_idx] = tuple(list(trainset[sample_idx]) + [sim_value])
 
             batch_size = batch['images'].shape[0]
             meters['loss'].update(total_loss.item(), batch_size)
-            meters['sdm_loss'].update(loss_sdm, batch_size)
+            if loss_sdm is not None:
+                meters['sdm_loss'].update(loss_sdm, batch_size)
+            if loss_cda is not None:
+                meters['cda_loss'].update(loss_cda, batch_size)
+            if loss_fta is not None:
+                meters['fta_loss'].update(loss_fta, batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()
@@ -105,6 +163,15 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
         for k, v in meters.items():
             if v.avg > 0:
                 tb_writer.add_scalar(k, v.avg, epoch)
+        if swanlab_run is not None:
+            swanlab_payload = {
+                "epoch": epoch,
+                "lr": scheduler.get_lr()[0],
+            }
+            for k, v in meters.items():
+                if v.avg > 0:
+                    swanlab_payload[f"train/{k}"] = v.avg
+            swanlab_run.log(swanlab_payload)
 
 
         scheduler.step()
@@ -119,14 +186,17 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             logger.info(f"best R1: CUHK {best_top1_0}, ICFG {best_top1_1}, RSTP {best_top1_2}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
-                if args.distributed:
-                    top1_0 = evaluator0.eval(model.module.eval())
-                    top1_1 = evaluator1.eval(model.module.eval())
-                    top1_2 = evaluator2.eval(model.module.eval())
-                else:
-                    top1_0 = evaluator0.eval(model.module.eval())
-                    top1_1 = evaluator1.eval(model.module.eval())
-                    top1_2 = evaluator2.eval(model.module.eval())
+                eval_model = model.module.eval()
+                top1_0 = evaluator0.eval(eval_model) if evaluator0 is not None else best_top1_0
+                top1_1 = evaluator1.eval(eval_model) if evaluator1 is not None else best_top1_1
+                top1_2 = evaluator2.eval(eval_model) if evaluator2 is not None else best_top1_2
+                if swanlab_run is not None:
+                    swanlab_run.log({
+                        "epoch": epoch,
+                        "val0/t2i_R1": top1_0,
+                        "val1/t2i_R1": top1_1,
+                        "val2/t2i_R1": top1_2,
+                    })
                 torch.cuda.empty_cache()
                 if best_top1_0 < top1_0:
                     best_top1_0 = top1_0
@@ -141,7 +211,7 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
                     arguments["epoch"] = epoch
                     checkpointer.save("best2", **arguments)
     if get_rank() == 0:
-        logger.info(f"best R1: {best_top1_0}, {best_top1_1}, {best_top1_2} at epoch {arguments['epoch']}")
+        logger.info(f"best R1: {best_top1_0}, {best_top1_1}, {best_top1_2} at epoch {arguments.get('epoch', 0)}")
 
 
 def do_inference(model, test_img_loader, test_txt_loader, swanlab_run=None):

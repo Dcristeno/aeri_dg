@@ -150,7 +150,8 @@ class ImageTextMLMDataset(Dataset):
                  tile_mix_grid: int = 0,
                  tile_mix_prob: float = 0.0,
                  pclip_noise_ratio: float = 0.0,
-                 vocab_size: int = 49408):
+                 vocab_size: int = 49408,
+                 use_ground: bool = False):
         self.dataset = dataset
         self.transform = transform
         self.text_length = text_length
@@ -159,6 +160,7 @@ class ImageTextMLMDataset(Dataset):
         self.tile_mix_prob = float(tile_mix_prob)
         self.pclip_noise_ratio = float(pclip_noise_ratio)
         self.vocab_size = int(vocab_size)
+        self.use_ground = bool(use_ground)
 
         self.tokenizer = SimpleTokenizer()
         self.pid_to_indices = defaultdict(list)
@@ -169,29 +171,40 @@ class ImageTextMLMDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        pid, img_path, g_path, caption = self.dataset[index][:5]
+        pid, image_id, img_path, g_path, caption = self._parse_sample(self.dataset[index], index)
         img = read_image(img_path)
         if self.tile_mix_grid > 1 and random.random() < self.tile_mix_prob:
             img = self._build_same_pid_tile_mix(index, pid, img)
-        g = read_image(g_path)
+        g = read_image(g_path) if self.use_ground and g_path is not None else None
         if self.transform is not None:
             img = self.transform(img)
-            g = self.transform(g)
+            if g is not None:
+                g = self.transform(g)
         caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
         caption_np = caption_tokens.cpu().numpy().copy()
         mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_np.copy())
         pclip_noisy_tokens = self._build_random_replaced_tokens(caption_np.copy())
         ret = {
             'pids': pid,
+            'image_ids': image_id,
             'images': img,
-            'ground_imgs': g,
             'caption_ids': caption_tokens,
             'mlm_ids': mlm_tokens,
             'mlm_labels': mlm_labels,
             'pclip_noisy_caption_ids': pclip_noisy_tokens,
         }
+        if g is not None:
+            ret['ground_imgs'] = g
 
         return ret
+
+    def _parse_sample(self, sample, index):
+        if len(sample) >= 4 and isinstance(sample[1], str) and isinstance(sample[2], str):
+            pid, img_path, g_path, caption = sample[:4]
+            return pid, index, img_path, g_path, caption
+
+        pid, image_id, img_path, caption = sample[:4]
+        return pid, image_id, img_path, None, caption
 
     def _build_same_pid_tile_mix(self, index, pid, base_img):
         candidate_indices = self.pid_to_indices.get(pid, [])
@@ -203,7 +216,7 @@ class ImageTextMLMDataset(Dataset):
             while partner_index == index:
                 partner_index = random.choice(candidate_indices)
 
-        partner_img_path = self.dataset[partner_index][1]
+        _, _, partner_img_path, _, _ = self._parse_sample(self.dataset[partner_index], partner_index)
         partner_img = read_image(partner_img_path)
         if partner_img.size != base_img.size:
             partner_img = partner_img.resize(base_img.size, Image.BILINEAR)
@@ -299,11 +312,13 @@ class FilterDataset(Dataset):
                  dataset,
                  transform=None,
                  text_length: int = 77,
-                 truncate: bool = True):
+                 truncate: bool = True,
+                 use_ground: bool = False):
         self.dataset = dataset
         self.transform = transform
         self.text_length = text_length
         self.truncate = truncate
+        self.use_ground = bool(use_ground)
 
         self.tokenizer = SimpleTokenizer()
 
@@ -311,10 +326,13 @@ class FilterDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        pid, image_id, img_path, caption, sim = self.dataset[index]
+        pid, image_id, img_path, ground_path, caption, sim = self._parse_sample(self.dataset[index], index)
         img = read_image(img_path)
+        ground_img = read_image(ground_path) if self.use_ground and ground_path is not None else None
         if self.transform is not None:
             img = self.transform(img)
+            if ground_img is not None:
+                ground_img = self.transform(ground_img)
 
         caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
         mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_tokens.cpu().numpy(), sim)
@@ -329,8 +347,24 @@ class FilterDataset(Dataset):
             'mlm_labels': mlm_labels,
             'caption_ids_ori': ori_tokens
         }
+        if ground_img is not None:
+            ret['ground_imgs'] = ground_img
 
         return ret
+
+    def _parse_sample(self, sample, index):
+        sim = np.full(self.text_length, 0.85, dtype=np.float32)
+        sample_core = sample
+        if len(sample) >= 5 and not isinstance(sample[-1], str):
+            sample_core = sample[:-1]
+            sim = np.asarray(sample[-1], dtype=np.float32)
+
+        if len(sample_core) >= 4 and isinstance(sample_core[1], str) and isinstance(sample_core[2], str):
+            pid, img_path, ground_path, caption = sample_core[:4]
+            return pid, index, img_path, ground_path, caption, sim
+
+        pid, image_id, img_path, caption = sample_core[:4]
+        return pid, image_id, img_path, None, caption, sim
 
     def _build_random_masked_tokens_and_labels(self, tokens, sim):
         """

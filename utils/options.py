@@ -51,6 +51,7 @@ def get_args():
     parser.add_argument("--loss_names", default='sdm', help="which loss to use ['mlm', 'cmpm', 'id', 'itc', 'sdm']")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0, help="mlm loss weight")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="id loss weight")
+    parser.add_argument("--cda_loss_weight", type=float, default=1.0, help="weight for CDA selective ground-aerial-text alignment on the SDM branch")
     parser.add_argument("--bridge_loss_weight", type=float, default=1.0, help="overall weight for the explicit ground-to-aerial bridge loss")
     parser.add_argument("--bridge_pair_weight", type=float, default=1.0, help="weight of the pair-level aerial-to-ground bridge term")
     parser.add_argument("--bridge_distill_weight", type=float, default=1.0, help="weight of the ground-to-text -> aerial-to-text relation distillation term")

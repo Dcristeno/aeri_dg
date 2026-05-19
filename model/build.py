@@ -59,6 +59,41 @@ class IRRA(nn.Module):
             nn.init.normal_(self.mlm_head.dense.weight, std=fc_std)
             nn.init.normal_(self.mlm_head.fc.weight, std=proj_std)
 
+        if 'fta' in self.current_task:
+            self.num_query = getattr(args, "fta_num_query", 4)
+            self.query = nn.Parameter(torch.randn(self.num_query, self.embed_dim))
+
+            if not hasattr(self, "cross_attn"):
+                self.cross_attn = nn.MultiheadAttention(self.embed_dim,
+                                                        self.embed_dim // 64,
+                                                        batch_first=True)
+                self.cross_modal_transformer = Transformer(width=self.embed_dim,
+                                                           layers=args.cmt_depth,
+                                                           heads=self.embed_dim // 64)
+                scale = self.cross_modal_transformer.width**-0.5
+
+                self.ln_pre_t = LayerNorm(self.embed_dim)
+                self.ln_pre_i = LayerNorm(self.embed_dim)
+                self.ln_post = LayerNorm(self.embed_dim)
+
+                proj_std = scale * ((2 * self.cross_modal_transformer.layers)**-0.5)
+                attn_std = scale
+                fc_std = (2 * self.cross_modal_transformer.width)**-0.5
+                for block in self.cross_modal_transformer.resblocks:
+                    nn.init.normal_(block.attn.in_proj_weight, std=attn_std)
+                    nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
+                    nn.init.normal_(block.mlp.c_fc.weight, std=fc_std)
+                    nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
+
+                nn.init.normal_(self.cross_attn.in_proj_weight, std=attn_std)
+                nn.init.normal_(self.cross_attn.out_proj.weight, std=proj_std)
+
+            self.mlp_logsigma2 = nn.Sequential(
+                nn.Linear(self.embed_dim, self.embed_dim * 2),
+                nn.ReLU(),
+                nn.Linear(self.embed_dim * 2, self.embed_dim)
+            )
+
     def _set_task(self):
         loss_names = self.args.loss_names
         self.current_task = [l.strip() for l in loss_names.split('+')]
@@ -101,11 +136,55 @@ class IRRA(nn.Module):
                 self.ln_pre_i(v),
                 need_weights=False)[0]
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(x, None)
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x)
         return x
+
+    def build_fta_queries(self, batch_size):
+        return self.query.unsqueeze(0).expand(batch_size, -1, -1)
+
+    def compute_fuzzy_membership(self, query_features, target_features):
+        query_features = query_features.half()
+        target_features = target_features.half()
+
+        query_norm = F.normalize(query_features, dim=-1)
+        target_norm = F.normalize(target_features, dim=-1)
+
+        log_sigma2 = self.mlp_logsigma2(target_norm)
+        sigma2 = torch.exp(log_sigma2).clamp(min=1e-6)
+
+        query_exp = query_norm.unsqueeze(2)
+        target_exp = target_norm.unsqueeze(0).unsqueeze(0)
+        relation = query_exp * target_exp
+
+        sigma2_exp = sigma2.unsqueeze(0).unsqueeze(0)
+        mu_dim = torch.exp(-((1.0 - relation) ** 2) / (2 * sigma2_exp ** 2))
+        mu_mean = mu_dim.mean(dim=-1)
+        return mu_mean.transpose(1, 2).contiguous()
+
+    def compute_fta_loss(self, image_feats, text_feats, image_cls_feats, text_cls_feats, pids, logit_scale):
+        batch_size = image_cls_feats.shape[0]
+        with torch.autocast(dtype=torch.float16, device_type='cuda'):
+            query = self.build_fta_queries(batch_size)
+            query_visual = self.cross_former(query.half(), image_feats, image_feats)
+            query_text = self.cross_former(query.half(), text_feats, text_feats)
+
+            mu_t2v = self.compute_fuzzy_membership(query_text, text_cls_feats)
+            mu_v2t = self.compute_fuzzy_membership(query_visual, image_cls_feats)
+
+        query_text = F.normalize(query_text, dim=-1)
+        query_visual = F.normalize(query_visual, dim=-1)
+
+        t2v_simi = torch.einsum('bkd,Bkd->bBk', query_text, query_visual)
+        v2t_simi = torch.einsum('bkd,Bkd->bBk', query_visual, query_text)
+        mu_and = mu_t2v * mu_v2t
+        s_t2v = (t2v_simi * mu_and).mean(dim=-1)
+        s_v2t = (v2t_simi * mu_and).mean(dim=-1)
+
+        fta_loss = 0.5 * objectives.compute_fa_loss(s_t2v, s_v2t, pids, logit_scale)
+        return fta_loss * self.args.fta_loss_weight
 
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
@@ -117,15 +196,20 @@ class IRRA(nn.Module):
         x = self.base_model.encode_text(text)
         return x[torch.arange(x.shape[0]), text.argmax(dim=-1)].float()
 
-    def forward(self, image, text, ori_text):
+    def forward(self, image, text, ori_text, ground_image=None):
         images = image
         caption_ids = text
         ori_caption_ids = ori_text
         mix_ids = torch.cat([caption_ids,ori_caption_ids],dim=0)
         with torch.autocast(dtype=torch.float16, device_type='cuda'):
-            image_feats, text_feats = self.base_model(images, mix_ids)
+            image_feats, ground_image_feats, text_feats = self.base_model(images, ground_image, mix_ids)
         image_feats, fu_img_feats = image_feats.chunk(2,dim=0)
+        ground_feats = None
+        if ground_image_feats is not None:
+            ground_feats, _ = ground_image_feats.chunk(2, dim=0)
         text_feats, fu_txt_feats = text_feats.chunk(2,dim=0)
+        if ground_feats is not None:
+            return image_feats.float(), text_feats.float(), fu_img_feats.float(), fu_txt_feats.float(), ground_feats.float()
         return image_feats.float(), text_feats.float(), fu_img_feats.float(),fu_txt_feats.float()
         
         ret = {}

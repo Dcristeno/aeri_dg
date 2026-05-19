@@ -332,6 +332,12 @@ def _mlm_dataset_kwargs(args):
     }
 
 
+def _uses_ground_line(args):
+    loss_names = getattr(args, "loss_names", "")
+    tasks = {token.strip() for token in loss_names.split("+") if token.strip()}
+    return bool(tasks & {"cda", "bridge", "ga_bridge"})
+
+
 def build_finetune_train_loader(args, train_dataset, epoch=None):
     train_transforms = build_transforms(img_size=args.img_size,
                                         aug=args.img_aug,
@@ -351,6 +357,7 @@ def build_finetune_train_loader(args, train_dataset, epoch=None):
                                     text_length=args.text_length,
                                     tile_mix_grid=args.train_tile_mix_grid,
                                     tile_mix_prob=args.train_tile_mix_prob,
+                                    use_ground=_uses_ground_line(args),
                                     **_mlm_dataset_kwargs(args))
     return DataLoader(train_set,
                       batch_size=args.batch_size,
@@ -390,12 +397,14 @@ def build_dataloader(args, tranforms=None):
                 train_set = ImageTextMLMDataset(syn_dataset.train,
                                         train_transforms,
                                         text_length=args.text_length,
+                                        use_ground=_uses_ground_line(args),
                                         **_mlm_dataset_kwargs(args))
                 num_classes = len(syn_dataset.train)
             else:
                 train_set = ImageTextMLMDataset(dataset.train,
                                         train_transforms,
                                         text_length=args.text_length,
+                                        use_ground=_uses_ground_line(args),
                                         **_mlm_dataset_kwargs(args))
         else:
             train_set = ImageTextDataset(dataset.train,
@@ -501,6 +510,7 @@ def build_zero_shot_loader(args, finetune=False):
         train_set = ImageTextMLMDataset(train_dataset,
                                 train_transforms,
                                 text_length=args.text_length,
+                                use_ground=_uses_ground_line(args),
                                 **_mlm_dataset_kwargs(args))
         num_classes = len(syn_dataset.train)
 
@@ -518,6 +528,7 @@ def build_zero_shot_loader(args, finetune=False):
             train_set = ImageTextMLMDataset(train_dataset,
                                     train_transforms,
                                     text_length=args.text_length,
+                                    use_ground=_uses_ground_line(args),
                                     **_mlm_dataset_kwargs(args))
             num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
             logger.info(
@@ -549,6 +560,7 @@ def build_zero_shot_loader(args, finetune=False):
         train_set = ImageTextMLMDataset(syn_dataset.train,
                                 train_transforms,
                                 text_length=args.text_length,
+                                use_ground=_uses_ground_line(args),
                                 **_mlm_dataset_kwargs(args))
         train_dataset = syn_dataset.train
         num_classes = len(syn_dataset.train)
@@ -641,7 +653,8 @@ def build_filter_loader(args, dataset):
                                             is_train=True)
     train_set = FilterDataset(dataset,
                             train_transforms,
-                            text_length=args.text_length)
+                            text_length=args.text_length,
+                            use_ground=_uses_ground_line(args))
     train_loader = DataLoader(train_set,
                                 batch_size=args.batch_size,
                                 shuffle=True,
