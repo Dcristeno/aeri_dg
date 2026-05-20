@@ -29,8 +29,6 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "id_loss": AverageMeter(),
         "bridge_loss": AverageMeter(),
         "bridge_gate": AverageMeter(),
-        "bridge_depth_aerial": AverageMeter(),
-        "bridge_depth_ground": AverageMeter(),
     }
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
@@ -66,8 +64,6 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters["id_loss"].update(ret.get("id_loss", 0), batch_size)
             meters["bridge_loss"].update(ret.get("bridge_loss", 0), batch_size)
             meters["bridge_gate"].update(ret.get("bridge_gate", 0), batch_size)
-            meters["bridge_depth_aerial"].update(ret.get("bridge_depth_aerial", 0), batch_size)
-            meters["bridge_depth_ground"].update(ret.get("bridge_depth_ground", 0), batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()

@@ -81,25 +81,6 @@ bash finetune.sh
 
 `BRIDGE_MODE=plain` is still the default and matches the current best line.
 
-To try the DEFOM-Stereo inspired depth-gated bridge with a strong bridge
-weight, run:
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_depth_gated_w08_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_depth_gated_w08_seed2' \
-BRIDGE_MODE='depth_gated' \
-BRIDGE_LOSS_WEIGHT=0.8 \
-DEPTH_GATE_MIN=0.75 \
-DEPTH_GATE_TAU=0.1 \
-SEED=2 \
-bash finetune.sh
-```
-
-This mode keeps the CLIP image feature unchanged and only gates the detached
-ground bridge. The first version uses a scale-robust image-structure proxy for
-depth confidence so it can run without offline depth files; if it shows signal,
-the proxy can be replaced by cached depth-foundation-model statistics.
-
 On the default server setup, this is equivalent to:
 
 ```bash
