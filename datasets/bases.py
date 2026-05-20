@@ -110,8 +110,11 @@ class ImageTextMLMDataset(Dataset):
 
     def __getitem__(self, index):
         sample = self.dataset[index]
-        if len(sample) >= 5:
+        caption_weight = 1.0
+        if len(sample) >= 5 and isinstance(sample[1], int):
             pid, img_path, g_path, caption = sample[0], sample[2], sample[3], sample[4]
+        elif len(sample) >= 5:
+            pid, img_path, g_path, caption, caption_weight = sample[:5]
         else:
             pid, img_path, g_path, caption = sample
 
@@ -129,6 +132,7 @@ class ImageTextMLMDataset(Dataset):
             'images': img,
             'ground_imgs': g,
             'caption_ids': caption_tokens,
+            'caption_weights': torch.tensor(float(caption_weight), dtype=torch.float32),
             'mlm_ids': mlm_tokens,
             'mlm_labels': mlm_labels,
         }

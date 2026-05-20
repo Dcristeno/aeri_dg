@@ -66,6 +66,65 @@ def collate(batch):
     return output
 
 
+def _caption_cherry_candidates(caption):
+    caption = " ".join(str(caption).split())
+    if not caption:
+        return []
+
+    candidates = [
+        f"An aerial-to-ground person retrieval description: {caption}",
+        f"A pedestrian identity with the following visual attributes: {caption}",
+        f"The same person is described as: {caption}",
+        f"A cross-view image of a person matching this description: {caption}",
+        f"From another camera view, this person can be recognized by: {caption}",
+    ]
+    seen = set()
+    unique = []
+    for candidate in candidates:
+        normalized = candidate.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(candidate)
+    return unique
+
+
+def _caption_cherry_score(caption, candidate, text_length):
+    caption_words = set(str(caption).lower().replace(".", " ").replace(",", " ").split())
+    candidate_words = str(candidate).lower().replace(".", " ").replace(",", " ").split()
+    candidate_set = set(candidate_words)
+    if not caption_words or not candidate_words:
+        return 0.0
+    retention = len(caption_words & candidate_set) / len(caption_words)
+    length_penalty = max(0.0, 1.0 - max(0, len(candidate_words) - text_length + 8) / max(text_length, 1))
+    view_bonus = 0.05 if any(token in candidate_set for token in ("aerial", "ground", "cross-view", "camera")) else 0.0
+    return retention + length_penalty + view_bonus
+
+
+def build_caption_cherry_dataset(dataset, mode="off", extra_per_sample=0, cherry_weight=1.0, text_length=77):
+    if mode == "off" or extra_per_sample <= 0:
+        return dataset
+    if mode != "template":
+        raise ValueError(f"Unsupported caption_cherry_mode: {mode}")
+
+    expanded = []
+    for sample in dataset:
+        if len(sample) >= 5 and isinstance(sample[1], int):
+            pid, img_path, g_path, caption = sample[0], sample[2], sample[3], sample[4]
+        else:
+            pid, img_path, g_path, caption = sample[:4]
+        expanded.append((pid, img_path, g_path, caption, 1.0))
+        candidates = _caption_cherry_candidates(caption)
+        candidates = sorted(
+            candidates,
+            key=lambda candidate: _caption_cherry_score(caption, candidate, text_length),
+            reverse=True,
+        )
+        for candidate in candidates[:extra_per_sample]:
+            expanded.append((pid, img_path, g_path, candidate, cherry_weight))
+    return expanded
+
+
 def _build_eval_loaders(args, split, transforms, num_workers):
     img_set = ImageDataset(split["image_pids"], split["img_paths"], transforms)
     txt_set = TextDataset(split["caption_pids"], split["captions"], text_length=args.text_length)
@@ -77,7 +136,7 @@ def _build_eval_loaders(args, split, transforms, num_workers):
 def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None, strategy="random"):
     if samples_per_id <= 0:
         return dataset
-    if strategy != "random":
+    if strategy not in {"random", "cherry_weighted"}:
         raise ValueError(f"Unsupported train sampling strategy: {strategy}")
 
     pid_to_samples = {}
@@ -88,7 +147,13 @@ def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None, strat
     sampled_dataset = []
     for pid in sorted(pid_to_samples.keys()):
         pid_samples = pid_to_samples[pid]
-        if len(pid_samples) >= samples_per_id:
+        if strategy == "cherry_weighted":
+            weights = [
+                float(sample[4]) if len(sample) >= 5 and not isinstance(sample[1], int) else 1.0
+                for sample in pid_samples
+            ]
+            sampled_dataset.extend(rng.choices(pid_samples, weights=weights, k=samples_per_id))
+        elif len(pid_samples) >= samples_per_id:
             sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
         else:
             sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
@@ -106,6 +171,13 @@ def relabel_train_dataset_pids(dataset):
 
 def build_finetune_train_loader(args, train_dataset, epoch=None):
     train_transforms = build_transforms(img_size=args.img_size, aug=args.img_aug, is_train=True)
+    train_dataset = build_caption_cherry_dataset(
+        train_dataset,
+        mode=args.caption_cherry_mode,
+        extra_per_sample=args.caption_cherry_extra_per_sample,
+        cherry_weight=args.caption_cherry_weight,
+        text_length=args.text_length,
+    )
     sampled_dataset = sample_train_dataset_per_pid(
         train_dataset,
         args.train_samples_per_id,
@@ -184,6 +256,12 @@ def build_zero_shot_loader(args, finetune=False):
         val_img_loader, val_txt_loader = _build_eval_loaders(args, dataset.test, eval_transforms, num_workers)
 
     train_dataset, train_pid_to_label = relabel_train_dataset_pids(train_dataset)
+    if args.caption_cherry_mode != "off" and args.caption_cherry_extra_per_sample > 0:
+        logger.info(
+            f"using caption cherry-picking: mode={args.caption_cherry_mode}, "
+            f"extra_per_sample={args.caption_cherry_extra_per_sample}, "
+            f"weight={args.caption_cherry_weight}"
+        )
     logger.info(
         f"using contiguous finetune training labels: classes={len(train_pid_to_label)}, "
         f"raw_pid_min={min(train_pid_to_label)}, raw_pid_max={max(train_pid_to_label)}"
@@ -196,6 +274,13 @@ def build_zero_shot_loader(args, finetune=False):
             f"k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
         )
     else:
+        train_dataset = build_caption_cherry_dataset(
+            train_dataset,
+            mode=args.caption_cherry_mode,
+            extra_per_sample=args.caption_cherry_extra_per_sample,
+            cherry_weight=args.caption_cherry_weight,
+            text_length=args.text_length,
+        )
         train_set = ImageTextMLMDataset(train_dataset, train_transforms, text_length=args.text_length)
         train_loader = DataLoader(
             train_set,

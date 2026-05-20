@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-def compute_sdm(image_features, text_features, pid, logit_scale, epsilon=1e-8):
+def compute_sdm(image_features, text_features, pid, logit_scale, sample_weights=None, epsilon=1e-8):
     """Similarity Distribution Matching for a batch of matched identities."""
     batch_size = image_features.shape[0]
     pid = pid.reshape((batch_size, 1))
@@ -17,15 +17,20 @@ def compute_sdm(image_features, text_features, pid, logit_scale, epsilon=1e-8):
 
     i2t_loss = F.softmax(logits_i2t, dim=1) * (F.log_softmax(logits_i2t, dim=1) - torch.log(labels + epsilon))
     t2i_loss = F.softmax(logits_t2i, dim=1) * (F.log_softmax(logits_t2i, dim=1) - torch.log(labels + epsilon))
-    return i2t_loss.sum(dim=1).mean() + t2i_loss.sum(dim=1).mean()
+    i2t_loss = i2t_loss.sum(dim=1)
+    t2i_loss = t2i_loss.sum(dim=1)
+    if sample_weights is not None:
+        sample_weights = sample_weights.float().reshape(-1)
+        return (i2t_loss * sample_weights).mean() + (t2i_loss * sample_weights).mean()
+    return i2t_loss.mean() + t2i_loss.mean()
 
 
-def compute_aeri_base_sdm_terms(aerial_features, ground_features, text_features, pid, logit_scale):
+def compute_aeri_base_sdm_terms(aerial_features, ground_features, text_features, pid, logit_scale, sample_weights=None):
     """Plain AERI baseline: aerial-text + ground-text SDM."""
     if ground_features is None:
         raise ValueError("AERI base loss requires ground image features, but got None.")
 
     return {
-        "base_aerial_text": compute_sdm(aerial_features, text_features, pid, logit_scale),
-        "base_ground_text": compute_sdm(ground_features, text_features, pid, logit_scale),
+        "base_aerial_text": compute_sdm(aerial_features, text_features, pid, logit_scale, sample_weights),
+        "base_ground_text": compute_sdm(ground_features, text_features, pid, logit_scale, sample_weights),
     }

@@ -76,6 +76,7 @@ class IRRA(nn.Module):
             text_feats,
             batch["pids"],
             self.logit_scale,
+            batch.get("caption_weights"),
         )
         base_loss = (
             base_terms["base_aerial_text"]
@@ -86,6 +87,8 @@ class IRRA(nn.Module):
             **base_terms,
             "base_loss": base_loss,
         }
+        if "caption_weights" in batch:
+            ret["caption_weight"] = batch["caption_weights"].float().mean()
         if "bridge" in self.current_task:
             pair_loss = 1.0 - nn.functional.cosine_similarity(
                 aerial_feats,
@@ -115,11 +118,23 @@ class IRRA(nn.Module):
             aerial_logits = self.classifier(aerial_feats.to(classifier_dtype)).float()
             ground_logits = self.classifier(ground_feats.to(classifier_dtype)).float()
             text_logits = self.classifier(text_feats.to(classifier_dtype)).float()
-            id_loss = (
-                nn.functional.cross_entropy(aerial_logits, labels)
-                + nn.functional.cross_entropy(ground_logits, labels)
-                + nn.functional.cross_entropy(text_logits, labels)
-            ) / 3.0
+            caption_weights = batch.get("caption_weights")
+            if caption_weights is not None:
+                caption_weights = caption_weights.float()
+                aerial_id_loss = nn.functional.cross_entropy(aerial_logits, labels, reduction="none")
+                ground_id_loss = nn.functional.cross_entropy(ground_logits, labels, reduction="none")
+                text_id_loss = nn.functional.cross_entropy(text_logits, labels, reduction="none")
+                id_loss = (
+                    (aerial_id_loss * caption_weights).mean()
+                    + (ground_id_loss * caption_weights).mean()
+                    + (text_id_loss * caption_weights).mean()
+                ) / 3.0
+            else:
+                id_loss = (
+                    nn.functional.cross_entropy(aerial_logits, labels)
+                    + nn.functional.cross_entropy(ground_logits, labels)
+                    + nn.functional.cross_entropy(text_logits, labels)
+                ) / 3.0
             ret["id_loss"] = id_loss * self.args.id_loss_weight
 
         return ret

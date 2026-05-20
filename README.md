@@ -81,6 +81,24 @@ bash finetune.sh
 
 `BRIDGE_MODE=plain` is still the default and matches the current best line.
 
+To try Auto Cherry-Picker inspired caption cherry-picking with strong caption
+loss weight, run:
+
+```bash
+RUN_NAME='aeri_k2_ground_bridge_caption_cherry_w3_seed2' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_caption_cherry_w3_seed2' \
+CAPTION_CHERRY_MODE='template' \
+CAPTION_CHERRY_EXTRA_PER_SAMPLE=2 \
+CAPTION_CHERRY_WEIGHT=3.0 \
+TRAIN_SAMPLE_STRATEGY='cherry_weighted' \
+SEED=2 \
+bash finetune.sh
+```
+
+This mode keeps the image model and bridge unchanged. It adds selected
+attribute-preserving caption variants to the train set, samples them more often,
+and applies a larger SDM/ID loss weight when a cherry-picked caption is used.
+
 On the default server setup, this is equivalent to:
 
 ```bash

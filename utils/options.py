@@ -31,6 +31,9 @@ def get_args():
     parser.add_argument("--bridge_mode", type=str, default="plain", help="bridge loss mode: plain or gated")
     parser.add_argument("--bridge_gate_min", type=float, default=0.2, help="minimum confidence for gated bridge loss")
     parser.add_argument("--bridge_gate_tau", type=float, default=0.1, help="temperature for gated bridge confidence")
+    parser.add_argument("--caption_cherry_mode", type=str, default="off", help="caption cherry-picking mode: off or template")
+    parser.add_argument("--caption_cherry_extra_per_sample", type=int, default=0, help="number of selected caption variants per training sample")
+    parser.add_argument("--caption_cherry_weight", type=float, default=3.0, help="loss weight for selected cherry-picked captions")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
@@ -69,7 +72,7 @@ def get_args():
     parser.add_argument("--finetune_val_ratio", type=float, default=0.1)
     parser.add_argument("--finetune_val_seed", type=int, default=1)
     parser.add_argument("--train_samples_per_id", type=int, default=0, help="if > 0, resample k training samples per identity each epoch")
-    parser.add_argument("--train_sample_strategy", type=str, default="random", help="per-id sampling strategy: random")
+    parser.add_argument("--train_sample_strategy", type=str, default="random", help="per-id sampling strategy: random or cherry_weighted")
     parser.add_argument("--test", dest="training", default=True, action="store_false")
 
     return parser.parse_args()
