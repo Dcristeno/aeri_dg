@@ -99,6 +99,39 @@ This mode keeps the image model and bridge unchanged. It adds selected
 attribute-preserving caption variants to the train set, samples them more often,
 and applies a larger SDM/ID loss weight when a cherry-picked caption is used.
 
+To train with Auto Cherry-Picker style synthetic image samples, first prepare a
+filtered JSON manifest:
+
+```json
+[
+  {
+    "pid": 0,
+    "aerial_img": "synthetic/aerial/person_000_a.jpg",
+    "ground_img": "synthetic/ground/person_000_g.jpg",
+    "caption": "a person wearing ...",
+    "score": 0.92
+  }
+]
+```
+
+Then run:
+
+```bash
+RUN_NAME='aeri_k2_ground_bridge_synth_cherry_w4_seed2' \
+SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_synth_cherry_w4_seed2' \
+SYNTHETIC_CHERRY_MANIFEST='/home/wuyong/data/aeri_synthetic/cherry_manifest.json' \
+SYNTHETIC_CHERRY_MIN_SCORE=0.8 \
+SYNTHETIC_CHERRY_MAX_PER_PID=2 \
+SYNTHETIC_CHERRY_WEIGHT=4.0 \
+TRAIN_SAMPLE_STRATEGY='cherry_weighted' \
+SEED=2 \
+bash finetune.sh
+```
+
+The manifest is expected to contain already generated and scored candidates.
+Training keeps only high-score samples, mixes them into the finetune set, and
+applies a larger SDM/ID loss weight through `SYNTHETIC_CHERRY_WEIGHT`.
+
 On the default server setup, this is equivalent to:
 
 ```bash

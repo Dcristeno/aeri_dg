@@ -1,4 +1,5 @@
 import logging
+import os.path as op
 import random
 
 import torch
@@ -9,6 +10,7 @@ from .AGData import AGData, AGDataAttr, AGSGData
 from .aeripedes import AERIPEDES
 from .agtbpr import AG_ReID
 from .bases import ImageDataset, ImageTextMLMDataset, TextDataset
+from utils.iotools import read_json
 
 
 __factory = {
@@ -123,6 +125,68 @@ def build_caption_cherry_dataset(dataset, mode="off", extra_per_sample=0, cherry
         for candidate in candidates[:extra_per_sample]:
             expanded.append((pid, img_path, g_path, candidate, cherry_weight))
     return expanded
+
+
+def _resolve_synthetic_path(path, root_dir, dataset_name):
+    if op.isabs(path):
+        return path
+    dataset_dir = op.join(root_dir, dataset_name)
+    candidate = op.join(dataset_dir, path)
+    if op.exists(candidate):
+        return candidate
+    return op.join(root_dir, path)
+
+
+def build_synthetic_cherry_dataset(args, dataset):
+    manifest_path = getattr(args, "synthetic_cherry_manifest", "")
+    if not manifest_path:
+        return dataset, 0
+    if not op.exists(manifest_path):
+        raise RuntimeError(f"Synthetic cherry manifest not found: {manifest_path}")
+
+    records = read_json(manifest_path)
+    if isinstance(records, dict):
+        records = records.get("samples", [])
+    if not isinstance(records, list):
+        raise ValueError("Synthetic cherry manifest must be a list or a dict with a 'samples' list.")
+
+    min_score = float(args.synthetic_cherry_min_score)
+    max_per_pid = int(args.synthetic_cherry_max_per_pid)
+    cherry_weight = float(args.synthetic_cherry_weight)
+
+    pid_to_records = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        score = float(record.get("score", record.get("clis", 1.0)))
+        if score < min_score:
+            continue
+        if "pid" not in record:
+            continue
+        pid = int(record["pid"])
+        aerial_path = record.get("aerial_img") or record.get("aerial_img_path") or record.get("image_path")
+        ground_path = record.get("ground_img") or record.get("ground_img_path") or record.get("image_path")
+        caption = record.get("caption") or record.get("text") or record.get("prompt")
+        if not aerial_path or not ground_path or not caption:
+            continue
+        pid_to_records.setdefault(pid, []).append((score, aerial_path, ground_path, caption))
+
+    synthetic_samples = []
+    for pid in sorted(pid_to_records.keys()):
+        ranked = sorted(pid_to_records[pid], key=lambda item: item[0], reverse=True)
+        if max_per_pid > 0:
+            ranked = ranked[:max_per_pid]
+        for score, aerial_path, ground_path, caption in ranked:
+            sample_weight = cherry_weight * max(score, 1e-6)
+            synthetic_samples.append((
+                pid,
+                _resolve_synthetic_path(aerial_path, args.root_dir, args.dataset_name),
+                _resolve_synthetic_path(ground_path, args.root_dir, args.dataset_name),
+                caption,
+                sample_weight,
+            ))
+
+    return list(dataset) + synthetic_samples, len(synthetic_samples)
 
 
 def _build_eval_loaders(args, split, transforms, num_workers):
@@ -254,6 +318,14 @@ def build_zero_shot_loader(args, finetune=False):
         raise ValueError(f"Unsupported finetune_eval_mode: {eval_mode}")
     else:
         val_img_loader, val_txt_loader = _build_eval_loaders(args, dataset.test, eval_transforms, num_workers)
+
+    train_dataset, synthetic_count = build_synthetic_cherry_dataset(args, train_dataset)
+    if synthetic_count > 0:
+        logger.info(
+            f"using synthetic image cherry-picking: manifest={args.synthetic_cherry_manifest}, "
+            f"samples={synthetic_count}, min_score={args.synthetic_cherry_min_score}, "
+            f"max_per_pid={args.synthetic_cherry_max_per_pid}, weight={args.synthetic_cherry_weight}"
+        )
 
     train_dataset, train_pid_to_label = relabel_train_dataset_pids(train_dataset)
     if args.caption_cherry_mode != "off" and args.caption_cherry_extra_per_sample > 0:

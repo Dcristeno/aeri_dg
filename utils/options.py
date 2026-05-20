@@ -34,6 +34,10 @@ def get_args():
     parser.add_argument("--caption_cherry_mode", type=str, default="off", help="caption cherry-picking mode: off or template")
     parser.add_argument("--caption_cherry_extra_per_sample", type=int, default=0, help="number of selected caption variants per training sample")
     parser.add_argument("--caption_cherry_weight", type=float, default=3.0, help="loss weight for selected cherry-picked captions")
+    parser.add_argument("--synthetic_cherry_manifest", type=str, default="", help="JSON manifest with filtered synthetic image samples")
+    parser.add_argument("--synthetic_cherry_min_score", type=float, default=0.0, help="minimum synthetic cherry score to keep")
+    parser.add_argument("--synthetic_cherry_max_per_pid", type=int, default=2, help="maximum synthetic samples to keep per identity; <=0 keeps all")
+    parser.add_argument("--synthetic_cherry_weight", type=float, default=4.0, help="base loss weight for synthetic cherry-picked samples")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

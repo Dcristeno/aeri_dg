@@ -108,3 +108,13 @@ epoch 60 的代表性训练 loss：
 - 配置：`CAPTION_CHERRY_MODE=template`，`CAPTION_CHERRY_EXTRA_PER_SAMPLE=2`，`CAPTION_CHERRY_WEIGHT=3.0`，`TRAIN_SAMPLE_STRATEGY=cherry_weighted`
 
 目标：不改变 CLIP image feature 和 ground bridge 主线，只在文本侧加入 attribute-preserving caption variants；通过本地模板候选和词汇保留/长度约束筛选 top captions，并对 cherry-picked captions 的 SDM/ID loss 使用较大权重。若该方向有效，应主要体现在早期 text-image 对齐速度和 R1/mAP 上。
+
+## 2026-05-20 - 待跑：synthetic image cherry-picking
+
+- 分支：`aeri-k2-ground-bridge-lite`
+- 对比基准：`aeri_k2_ground_bridge_lite_w2_seed2`
+- 建议实验名：`aeri_k2_ground_bridge_synth_cherry_w4_seed2`
+- 方法来源：Auto Cherry-Picker 的“生成候选图像 + 质量分数筛选 + 高质量样本增强”思路
+- 配置：`SYNTHETIC_CHERRY_MANIFEST=<manifest.json>`，`SYNTHETIC_CHERRY_MIN_SCORE=0.8`，`SYNTHETIC_CHERRY_MAX_PER_PID=2`，`SYNTHETIC_CHERRY_WEIGHT=4.0`，`TRAIN_SAMPLE_STRATEGY=cherry_weighted`
+
+目标：训练端不负责生成图像，只读取已筛选或带 `score` 的 synthetic manifest。manifest 中每条记录包含 `pid`、`aerial_img`、`ground_img`、`caption`、`score`；训练时按分数阈值和每 ID 上限 cherry-pick，混入 finetune train set，并对 synthetic 样本施加较大 SDM/ID loss 权重。若该方向有效，应比模板 caption cherry 更有机会改善长尾身份和跨视角泛化。
