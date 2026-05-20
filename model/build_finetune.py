@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from model import objectives
 from .clip_model import build_CLIP_from_openai_pretrained, convert_weights
@@ -48,6 +49,45 @@ class IRRA(nn.Module):
     def encode_text(self, text):
         text_feats = self.base_model.encode_text(text.long())
         return text_feats[torch.arange(text_feats.shape[0]), text.argmax(dim=-1)].float()
+
+    def _depth_proxy_confidence(self, image):
+        image = image.float()
+        mean = image.new_tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1)
+        std = image.new_tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1)
+        rgb = (image * std + mean).clamp(0.0, 1.0)
+        gray = (
+            0.299 * rgb[:, 0:1]
+            + 0.587 * rgb[:, 1:2]
+            + 0.114 * rgb[:, 2:3]
+        )
+
+        grad_x = F.pad((gray[:, :, :, 1:] - gray[:, :, :, :-1]).abs(), (0, 1, 0, 0))
+        grad_y = F.pad((gray[:, :, 1:, :] - gray[:, :, :-1, :]).abs(), (0, 0, 0, 1))
+        structure = grad_x + grad_y
+
+        height, width = gray.shape[-2:]
+        y = torch.linspace(0.0, 1.0, height, device=image.device, dtype=image.dtype)
+        x = torch.linspace(0.0, 1.0, width, device=image.device, dtype=image.dtype)
+        yy, xx = torch.meshgrid(y, x, indexing="ij")
+        center_prior = torch.exp(-(((xx - 0.5) / 0.28) ** 2 + ((yy - 0.5) / 0.42) ** 2) / 2.0)
+        near_prior = yy
+        mask = (center_prior * (0.5 + near_prior)).view(1, 1, height, width)
+
+        eps = 1e-6
+        focus_structure = (structure * mask).sum(dim=(1, 2, 3)) / (mask.sum() + eps)
+        global_structure = structure.mean(dim=(1, 2, 3))
+        focus_ratio = focus_structure / (global_structure + eps)
+
+        masked_gray = (gray * mask).sum(dim=(1, 2, 3)) / (mask.sum() + eps)
+        masked_contrast = (((gray - masked_gray.view(-1, 1, 1, 1)) ** 2) * mask).sum(dim=(1, 2, 3))
+        masked_contrast = torch.sqrt(masked_contrast / (mask.sum() + eps) + eps)
+
+        vertical_mass = (structure * yy.view(1, 1, height, width)).sum(dim=(1, 2, 3))
+        vertical_mass = vertical_mass / (structure.sum(dim=(1, 2, 3)) + eps)
+
+        raw_score = focus_ratio + masked_contrast + vertical_mass
+        score = (raw_score - raw_score.mean()) / (raw_score.std(unbiased=False) + eps)
+        return torch.sigmoid(score)
 
     def forward(self, batch):
         images = batch["images"]
@@ -105,6 +145,20 @@ class IRRA(nn.Module):
                 gate = gate.detach()
                 bridge_loss = (gate * pair_loss).mean()
                 ret["bridge_gate"] = gate.mean()
+            elif bridge_mode == "depth_gated":
+                aerial_depth_conf = self._depth_proxy_confidence(images)
+                ground_depth_conf = self._depth_proxy_confidence(ground_images)
+                gate_tau = max(float(self.args.depth_gate_tau), 1e-6)
+                gate_min = float(self.args.depth_gate_min)
+                gate_min = min(max(gate_min, 0.0), 1.0)
+                ground_trust = torch.sigmoid((ground_depth_conf - aerial_depth_conf) / gate_tau)
+                depth_agreement = (1.0 - (ground_depth_conf - aerial_depth_conf).abs()).clamp(0.0, 1.0)
+                gate = gate_min + (1.0 - gate_min) * (0.7 * ground_trust + 0.3 * depth_agreement)
+                gate = gate.detach()
+                bridge_loss = (gate * pair_loss).mean()
+                ret["bridge_gate"] = gate.mean()
+                ret["bridge_depth_aerial"] = aerial_depth_conf.mean()
+                ret["bridge_depth_ground"] = ground_depth_conf.mean()
             else:
                 raise ValueError(f"Unsupported bridge_mode: {self.args.bridge_mode}")
             ret["bridge_loss"] = bridge_loss * self.args.bridge_loss_weight
