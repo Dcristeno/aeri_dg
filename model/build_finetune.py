@@ -41,48 +41,9 @@ class IRRA(nn.Module):
             raise ValueError("This branch supports LOSS_NAMES='base', 'base+id', or 'base+id+bridge'.")
         print(f"Training Model with {self.current_task} tasks")
 
-    def _pool_image_tokens(self, image_feats):
-        cls_feat = image_feats[:, 0, :].float()
-        if getattr(self.args, "image_pooling", "cls").lower() == "cls":
-            return cls_feat
-
-        if getattr(self.args, "image_pooling", "cls").lower() != "foreground":
-            raise ValueError(f"Unsupported image_pooling: {self.args.image_pooling}")
-
-        patch_feats = image_feats[:, 1:, :].float()
-        num_patches = patch_feats.shape[1]
-        grid_h = self.args.img_size[0] // self.args.stride_size
-        grid_w = self.args.img_size[1] // self.args.stride_size
-        if grid_h * grid_w != num_patches:
-            grid_h = int(num_patches ** 0.5)
-            grid_w = max(num_patches // max(grid_h, 1), 1)
-        if grid_h * grid_w != num_patches:
-            return cls_feat
-
-        token_score = patch_feats.norm(dim=-1)
-        token_score = (token_score - token_score.mean(dim=1, keepdim=True)) / (
-            token_score.std(dim=1, keepdim=True) + 1e-6
-        )
-
-        y = torch.linspace(0.0, 1.0, grid_h, device=patch_feats.device, dtype=patch_feats.dtype)
-        x = torch.linspace(0.0, 1.0, grid_w, device=patch_feats.device, dtype=patch_feats.dtype)
-        yy, xx = torch.meshgrid(y, x, indexing="ij")
-        center_prior = torch.exp(-(((xx - 0.5) / 0.28) ** 2 + ((yy - 0.5) / 0.42) ** 2) / 2.0)
-        depth_prior = yy
-        prior = (
-            self.args.foreground_center_weight * center_prior
-            + self.args.foreground_depth_weight * depth_prior
-        ).reshape(1, num_patches)
-
-        tau = max(float(self.args.foreground_pool_tau), 1e-6)
-        weights = torch.softmax((token_score + prior) / tau, dim=1)
-        foreground_feat = torch.sum(weights.unsqueeze(-1) * patch_feats, dim=1)
-        mix = min(max(float(self.args.foreground_pool_mix), 0.0), 1.0)
-        return (1.0 - mix) * cls_feat + mix * foreground_feat
-
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
-        return self._pool_image_tokens(image_feats)
+        return image_feats[:, 0, :].float()
 
     def encode_text(self, text):
         text_feats = self.base_model.encode_text(text.long())
@@ -102,8 +63,8 @@ class IRRA(nn.Module):
                 caption_ids,
             )
 
-        aerial_feats = self._pool_image_tokens(image_feats)
-        ground_feats = self._pool_image_tokens(ground_image_feats)
+        aerial_feats = image_feats[:, 0, :].float()
+        ground_feats = ground_image_feats[:, 0, :].float()
         text_feats = text_feats[
             torch.arange(text_feats.shape[0], device=text_feats.device),
             caption_ids.argmax(dim=-1),

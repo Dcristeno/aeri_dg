@@ -81,25 +81,6 @@ bash finetune.sh
 
 `BRIDGE_MODE=plain` is still the default and matches the current best line.
 
-To replace CLS image features with aggressive foreground-weighted patch pooling, run:
-
-```bash
-RUN_NAME='aeri_k2_ground_bridge_fgpool_m075_seed2' \
-SWANLAB_EXPERIMENT='aeri_k2_ground_bridge_fgpool_m075_seed2' \
-IMAGE_POOLING='foreground' \
-FOREGROUND_POOL_MIX=0.75 \
-FOREGROUND_POOL_TAU=0.07 \
-FOREGROUND_CENTER_WEIGHT=2.0 \
-FOREGROUND_DEPTH_WEIGHT=1.0 \
-SEED=2 \
-bash finetune.sh
-```
-
-This is a high-risk MonSter++-inspired foreground weighting experiment. It does
-not import a stereo/depth model; instead it uses CLIP patch-token saliency plus
-a strong center and lower-image depth prior to pool image features for both
-training and evaluation.
-
 On the default server setup, this is equivalent to:
 
 ```bash
