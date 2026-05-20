@@ -92,3 +92,13 @@ epoch 60 的最终验证结果：
 - 如果需要估计方差，可以先对同一条线做 seed sweep；
 - 可以围绕当前默认值 `0.5` 微调 `BRIDGE_LOSS_WEIGHT`；
 - 尝试采样策略变体时，建议保留 random `k=2` 作为强控制组。
+
+## 已放弃方向
+
+截至 2026-05-20，下面方向已试过早期曲线或完整实现后撤回，后续不要在相同形式上重复投入：
+
+- `differential bridge`：受 Generative Photography 的 camera residual 思路启发，但在当前数据缺少真实相机/视角标注时，显式 `ground -> aerial` residual 会干扰 plain bridge。
+- `foreground-weighted image pooling`：受 MonSter++/depth prior 启发，用手工前景/近景 prior 替代 CLS 图像特征；早期六项验证指标全面低于基线，说明会破坏 CLIP 文本-图像语义对齐。
+- `pseudo depth-gated bridge`：受 DEFOM-Stereo 启发，用图像结构 pseudo-depth confidence 调 bridge gate；曲线几乎贴合基线，说明当前 proxy 基本没有有效样本区分度。
+
+若未来重启 depth 相关方向，应先离线生成真实 depth-foundation-model 统计，并验证 gate 分布确实有区分度，再接入训练；不要继续调当前 hand-crafted pseudo-depth proxy。

@@ -65,3 +65,36 @@ epoch 60 的代表性训练 loss：
 目标：在保留 ground bridge 主线的前提下，让 ground teacher 的监督强度根据样本置信度自适应变化。若 `ground-text` 相似度明显高于 `aerial-text`，增强 bridge；否则减弱 bridge，避免 ground teacher 过度拉动已经较可靠的 aerial feature。
 
 结果跑完后追加到 `docs/runs.csv`，仍然用 best epoch 指标比较。
+
+## 2026-05-20 - 负结果与经验记录
+
+分支：`aeri-k2-ground-bridge-lite`
+
+对比基准仍为 `aeri_k2_ground_bridge_lite_w2_seed2`。下面这些方向均已尝试或观察到早期曲线，不建议继续沿原形式推进；相关代码已 revert，避免污染当前稳定主线。
+
+### Generative Photography inspired differential bridge
+
+- 相关提交：`dacbcf2`、`2d767e6`，已由 `dd3ae0a`、`3d24f63` revert。
+- 尝试内容：参考 camera-difference / residual conditioning 思路，为 `ground -> aerial` 建一个 residual bridge。
+- 观察：第一版用 residual teacher 替代 plain bridge，早期 R1 曲线低于 plain bridge；第二版改为辅助项后仍缺少明确收益。
+- 结论：当前 AERI-PEDES 线中，显式学习 `ground -> aerial` residual 容易干扰已有效的 detached ground bridge。若后续没有真实视角/相机标注，不建议继续做 residual bridge。
+
+### MonSter++ inspired foreground-weighted image pooling
+
+- 相关提交：`4c9f2ae`，已由 `a325e48` revert。
+- 尝试内容：用 CLIP patch token saliency 加强中心/下方近景 prior，替代 CLS image feature 做 foreground-weighted pooling。
+- 早期观察：epoch 5 已全面低于基线，R1/R5/R10/RSum/mAP/mINP 同时落后。
+- 结论：强行改变 CLIP 图像特征池化会削弱文本-图像语义对齐。当前任务更依赖 CLS 的全局语义，不建议继续做 hand-crafted foreground pooling。
+
+### DEFOM-Stereo inspired depth-gated bridge
+
+- 相关提交：`cde4d73`，已由 `fc350d3` revert。
+- 尝试内容：新增 `BRIDGE_MODE=depth_gated`，保持 CLIP image feature 不变，只用图像结构 pseudo-depth confidence 给 bridge loss 加 gate，并用较大 `BRIDGE_LOSS_WEIGHT=0.8`。
+- 观察：曲线与 plain bridge 基线几乎重合，没有明显正负信号。
+- 结论：当前无需离线深度文件的 pseudo-depth gate 区分度不足，实际接近常数 gate。若未来重启 depth 方向，应先离线缓存真实 depth-foundation-model 统计，再验证 gate 是否具备样本区分度；不要继续调当前 pseudo-depth proxy。
+
+### 后续建议
+
+- 保持当前 best baseline：`base+id+bridge`、plain detached ground bridge、random `k=2` per-ID sampling。
+- 仍可优先验证 `BRIDGE_MODE=gated` 的文本相似度置信门控，因为它不改变图像特征，也不依赖 hand-crafted geometry prior。
+- 若继续做新方法，优先选择“只调 loss 权重/样本权重”的保守实验；不要优先改 `encode_image`、patch pooling 或引入无标注几何 residual。
