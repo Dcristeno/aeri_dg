@@ -31,6 +31,11 @@ def get_args():
     parser.add_argument("--bridge_mode", type=str, default="plain", help="bridge loss mode: plain or gated")
     parser.add_argument("--bridge_gate_min", type=float, default=0.2, help="minimum confidence for gated bridge loss")
     parser.add_argument("--bridge_gate_tau", type=float, default=0.1, help="temperature for gated bridge confidence")
+    parser.add_argument("--image_pooling", type=str, default="cls", help="image feature pooling: cls or foreground")
+    parser.add_argument("--foreground_pool_mix", type=float, default=0.75, help="foreground patch feature mix ratio")
+    parser.add_argument("--foreground_pool_tau", type=float, default=0.07, help="foreground patch softmax temperature")
+    parser.add_argument("--foreground_center_weight", type=float, default=2.0, help="center prior weight for foreground pooling")
+    parser.add_argument("--foreground_depth_weight", type=float, default=1.0, help="bottom-depth prior weight for foreground pooling")
     parser.add_argument("--MLM", default=True, action="store_true", help="kept for dataset compatibility")
 
     parser.add_argument("--img_size", type=tuple, default=(384, 128))
