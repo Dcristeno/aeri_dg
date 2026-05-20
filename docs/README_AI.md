@@ -100,5 +100,11 @@ epoch 60 的最终验证结果：
 - `differential bridge`：受 Generative Photography 的 camera residual 思路启发，但在当前数据缺少真实相机/视角标注时，显式 `ground -> aerial` residual 会干扰 plain bridge。
 - `foreground-weighted image pooling`：受 MonSter++/depth prior 启发，用手工前景/近景 prior 替代 CLS 图像特征；早期六项验证指标全面低于基线，说明会破坏 CLIP 文本-图像语义对齐。
 - `pseudo depth-gated bridge`：受 DEFOM-Stereo 启发，用图像结构 pseudo-depth confidence 调 bridge gate；曲线几乎贴合基线，说明当前 proxy 基本没有有效样本区分度。
+- `template caption cherry-picking`：受 Auto Cherry-Picker 启发，用模板生成 caption variants 并给大权重；早期曲线没有稳定超过基线，随后趋势落后，判断模板文本分布过于粗糙，不建议继续跑满。
 
 若未来重启 depth 相关方向，应先离线生成真实 depth-foundation-model 统计，并验证 gate 分布确实有区分度，再接入训练；不要继续调当前 hand-crafted pseudo-depth proxy。
+
+## 当前待处理
+
+- `synthetic image cherry-picking` 训练端已接入，提交 `1c57eab`，默认关闭。开启时需要提供已生成/已打分的 `SYNTHETIC_CHERRY_MANIFEST`。
+- 建议命令见 `docs/EXP_LOG.md` 和 `README.md`。当前尚未跑通，因为服务器 shell 找不到 `python`/`conda`，旧环境 `/home/wuyong/data/Daiguangzhe/envs/irra` 在当前路径下未找到。下一步先恢复训练环境，再跑 `aeri_k2_ground_bridge_synth_cherry_w4_seed2`。

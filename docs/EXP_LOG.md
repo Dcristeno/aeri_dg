@@ -99,17 +99,21 @@ epoch 60 的代表性训练 loss：
 - 仍可优先验证 `BRIDGE_MODE=gated` 的文本相似度置信门控，因为它不改变图像特征，也不依赖 hand-crafted geometry prior。
 - 若继续做新方法，优先选择“只调 loss 权重/样本权重”的保守实验；不要优先改 `encode_image`、patch pooling 或引入无标注几何 residual。
 
-## 2026-05-20 - 待跑：caption cherry-picking
+## 2026-05-20 - caption cherry-picking 早期负结果
 
 - 分支：`aeri-k2-ground-bridge-lite`
 - 对比基准：`aeri_k2_ground_bridge_lite_w2_seed2`
-- 建议实验名：`aeri_k2_ground_bridge_caption_cherry_w3_seed2`
+- 实验名：`aeri_k2_ground_bridge_caption_cherry_w3_seed2`
 - 方法来源：Auto Cherry-Picker 的“生成候选 + 质量筛选 + 高质量样本增强”思路
 - 配置：`CAPTION_CHERRY_MODE=template`，`CAPTION_CHERRY_EXTRA_PER_SAMPLE=2`，`CAPTION_CHERRY_WEIGHT=3.0`，`TRAIN_SAMPLE_STRATEGY=cherry_weighted`
 
-目标：不改变 CLIP image feature 和 ground bridge 主线，只在文本侧加入 attribute-preserving caption variants；通过本地模板候选和词汇保留/长度约束筛选 top captions，并对 cherry-picked captions 的 SDM/ID loss 使用较大权重。若该方向有效，应主要体现在早期 text-image 对齐速度和 R1/mAP 上。
+目标：不改变 CLIP image feature 和 ground bridge 主线，只在文本侧加入 attribute-preserving caption variants；通过本地模板候选和词汇保留/长度约束筛选 top captions，并对 cherry-picked captions 的 SDM/ID loss 使用较大权重。
 
-## 2026-05-20 - 待跑：synthetic image cherry-picking
+早期观察：曲线在最初若干 epoch 有轻微波动优势，但随后 R1/R5/R10/RSum/mAP/mINP 均没有稳定超过 `aeri_k2_ground_bridge_lite_w2_seed2`，趋势开始落后。判断为模板式 caption 前缀增强过于粗糙，可能强化了不自然文本分布，削弱真实 caption 泛化。
+
+结论：当前 template caption cherry 不建议继续跑满 60 epoch；如重启该方向，应改为真实 LLM paraphrase，并使用当前 CLIP/HAM checkpoint 做 text-real image consistency 筛选，而不是模板前缀增强。
+
+## 2026-05-20 - synthetic image cherry-picking 接入状态
 
 - 分支：`aeri-k2-ground-bridge-lite`
 - 对比基准：`aeri_k2_ground_bridge_lite_w2_seed2`
@@ -118,3 +122,5 @@ epoch 60 的代表性训练 loss：
 - 配置：`SYNTHETIC_CHERRY_MANIFEST=<manifest.json>`，`SYNTHETIC_CHERRY_MIN_SCORE=0.8`，`SYNTHETIC_CHERRY_MAX_PER_PID=2`，`SYNTHETIC_CHERRY_WEIGHT=4.0`，`TRAIN_SAMPLE_STRATEGY=cherry_weighted`
 
 目标：训练端不负责生成图像，只读取已筛选或带 `score` 的 synthetic manifest。manifest 中每条记录包含 `pid`、`aerial_img`、`ground_img`、`caption`、`score`；训练时按分数阈值和每 ID 上限 cherry-pick，混入 finetune train set，并对 synthetic 样本施加较大 SDM/ID loss 权重。若该方向有效，应比模板 caption cherry 更有机会改善长尾身份和跨视角泛化。
+
+当前状态：代码已接入并推送，提交 `1c57eab`。服务器 `git pull` 已显示最新，但训练尚未启动；当前阻塞是服务器 shell 中找不到 `python`/`conda`，旧日志里的 `/home/wuyong/data/Daiguangzhe/envs/irra` 环境在当前路径下未找到。下一步需要先恢复或定位训练 Python 环境，再运行 synthetic cherry 实验。
