@@ -16,7 +16,7 @@ img_size: !!python/tuple
 - 128
 local_rank: 0
 log_period: 100
-loss_names: cda+fta
+loss_names: cda
 lr: 5.0e-06
 lr2: 5.0e-05
 lr_factor: 5.0

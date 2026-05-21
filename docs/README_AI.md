@@ -16,21 +16,18 @@
 
 ## 当前 Baseline
 
-当前作为本分支重新记录后的 baseline：
+当前代码默认 baseline 已调整为 `CDA`。直接运行 `bash finetune.sh` 时，默认 `LOSS_NAMES=cda`；论文叙事中用 CDA 作为 loss baseline，FTA+Bridge 作为联合细粒度 bridge 创新模块。
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_fta_bridge_pair_k2_w2p0' \
-SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_k2_w2p0' \
-LOSS_NAMES='cda+fta+bridge' \
+RUN_NAME='aeri_cda_k2_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_k2_r1base' \
+LOSS_NAMES='cda' \
 TRAIN_SAMPLES_PER_ID=2 \
 TRAIN_SAMPLE_STRATEGY='random' \
-BRIDGE_LOSS_WEIGHT=2.0 \
-BRIDGE_PAIR_WEIGHT=1.0 \
-BRIDGE_DISTILL_WEIGHT=0.0 \
-BRIDGE_DISTILL_TEMP=0.07 \
+BEST_METRIC=R1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
@@ -52,22 +49,36 @@ bash finetune.sh
 
 ## 建议消融顺序
 
-1. 当前完整线：`cda+fta+bridge` + random `k=2`。
-2. 去 bridge：`cda+fta` + random `k=2`。
-3. 去 FTA：`cda+bridge` + random `k=2`。
-4. 去 k=2：`cda+fta+bridge` + 原始采样。
-5. 最小 baseline：只保留当前分支定义的基础 retrieval loss。
+1. CDA baseline：`cda` + random `k=2`。
+2. 细粒度模块：`cda+fta` + random `k=2`。
+3. bridge 模块：`cda+bridge` + random `k=2`。
+4. FTA+Bridge 联合模块：`cda+fta+bridge` + random `k=2`。
+5. 去 k=2：`cda+fta+bridge` + 原始采样。
 
 建议命令：
 
 ```bash
-# 去 bridge：验证 cda+fta + random k=2 的 R1
+# CDA baseline：验证 cda + random k=2 的 R1
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_fta_k2_r1base' \
-SWANLAB_EXPERIMENT='aeri_cda_fta_k2_r1base' \
-LOSS_NAMES='cda+fta' \
+RUN_NAME='aeri_cda_k2_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_k2_r1base' \
+LOSS_NAMES='cda' \
 TRAIN_SAMPLES_PER_ID=2 \
 TRAIN_SAMPLE_STRATEGY='random' \
+BEST_METRIC=R1 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+
+# FTA+Bridge 联合模块：验证第三创新点
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_fta_bridge_pair_k2_r1' \
+SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_k2_r1' \
+LOSS_NAMES='cda+fta+bridge' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=0.0 \
 BEST_METRIC=R1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh

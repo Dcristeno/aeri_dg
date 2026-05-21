@@ -6,7 +6,7 @@ This repo snapshot is a cleaned working copy of the author-provided CFAN baselin
 
 - Removed hardcoded `CUDA_VISIBLE_DEVICES` from `finetune.py` and `test.py`.
 - Added a safer evaluation entry that can load the author checkpoint directly.
-- Normalized the legacy author loss naming `sdm+fa` to the finetune code's actual implementation names `cda+fta`.
+- Normalized the legacy author loss naming and use `cda` as the clean finetune baseline loss.
 - Added runnable shell scripts for finetuning and evaluation.
 - Made SwanLab logging opt-in in both evaluation and finetuning scripts, so training does not stall on network reconnects by default.
 
@@ -47,15 +47,24 @@ bash finetune.sh
 
 To enable SwanLab logging for finetuning, add `USE_SWANLAB=1`.
 
-To run the cleaner `CDA+FTA` baseline with AERI per-ID sparse sampling, for example `k=2`, run:
+The default finetune loss is the clean `CDA` baseline. To run this baseline with AERI per-ID sparse sampling, for example `k=2`, run:
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
-LOSS_NAMES='cda+fta' \
+LOSS_NAMES='cda' \
 TRAIN_SAMPLES_PER_ID=2 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
+```
+
+Use `CDA` as the baseline anchor for ablations. Treat FTA and bridge as add-on modules, for example:
+
+```bash
+LOSS_NAMES='cda+fta+bridge' \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=0.0 \
 ```
 
 To rerun the same configuration under a different random seed, add `SEED=<n>`, for example `SEED=2`.
