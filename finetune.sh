@@ -8,6 +8,7 @@ FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_
 RUN_NAME="${RUN_NAME:-cfan_finetune}"
 SEED="${SEED:-1}"
 FINETUNE_EVAL_MODE="${FINETUNE_EVAL_MODE:-test}"
+BEST_METRIC="${BEST_METRIC:-R1}"
 LOSS_NAMES="${LOSS_NAMES:-cda+fta}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-0}"
 FINETUNE_VAL_RATIO="${FINETUNE_VAL_RATIO:-0.1}"
@@ -41,6 +42,7 @@ args=(
   --name "${RUN_NAME}"
   --seed "${SEED}"
   --finetune_eval_mode "${FINETUNE_EVAL_MODE}"
+  --best_metric "${BEST_METRIC}"
   --img_aug
   --batch_size 64
   --MLM

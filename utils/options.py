@@ -18,6 +18,7 @@ def get_args():
     parser.add_argument("--swanlab_project", default="CFAN", help="SwanLab project name")
     parser.add_argument("--swanlab_experiment", default="", help="Optional SwanLab experiment name")
     parser.add_argument("--swanlab_mode", default="cloud", help="SwanLab mode, e.g. cloud or local")
+    parser.add_argument("--best_metric", default="R1", help="validation metric used to save best0: R1, R5, R10, RSum, mAP, or mINP")
 
     parser.add_argument("--finetune", type=str, default="pretrain/HAMbest0.pth")
     parser.add_argument("--pretrain", type=str, default="")

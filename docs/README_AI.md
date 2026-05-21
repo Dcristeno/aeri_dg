@@ -39,13 +39,16 @@ bash finetune.sh
 
 目标是把当前实验拆成清晰可控的模块，用更低成本做 R1-oriented ablation。
 
-需要模块化：
+已完成的第一步拆分：
 
-- baseline 训练主干：只负责最小训练、评估、checkpoint、日志。
-- random `k=2` sampler：从数据构建中独立出来，可开关、可替换。
-- `cda+fta` loss：从模型 forward 中拆出模块，可单独开启 CDA、FTA、CDA+FTA。
-- bridge pair loss：从混杂 loss 逻辑中拆出，可单独关闭。
-- best metric：支持显式选择 `R1` 或 `RSum`，后续默认追 R1。
+- `datasets/per_id_sampling.py`：独立承载 random `k=2` 和其他 per-id sampling 策略。
+- `model/finetune_losses.py`：独立承载 CDA、FTA、bridge pair/distill 的 loss 组装。
+- `BEST_METRIC` / `--best_metric`：默认 `R1`，用于保存 `best0`。
+
+后续继续保持：
+
+- baseline 训练主干只负责最小训练、评估、checkpoint、日志。
+- sampling、loss、bridge 都通过参数开关做消融，不再散落在主训练流程中。
 
 ## 建议消融顺序
 
@@ -55,9 +58,36 @@ bash finetune.sh
 4. 去 k=2：`cda+fta+bridge` + 原始采样。
 5. 最小 baseline：只保留当前分支定义的基础 retrieval loss。
 
+建议命令：
+
+```bash
+# 去 bridge：验证 cda+fta + random k=2 的 R1
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_fta_k2_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_fta_k2_r1base' \
+LOSS_NAMES='cda+fta' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
+BEST_METRIC=R1 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+
+# 去 k=2：验证完整 loss 在原始采样下的 R1
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_fta_bridge_pair_fullsample_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_fullsample_r1base' \
+LOSS_NAMES='cda+fta+bridge' \
+TRAIN_SAMPLES_PER_ID=0 \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=0.0 \
+BEST_METRIC=R1 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
 每次实验都写入：
 
 - `docs/EXP_LOG.md`
 - `docs/runs.csv`
 - 如有错误，写入 `docs/ERROR_LOG.md`
-

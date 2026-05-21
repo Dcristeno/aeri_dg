@@ -73,3 +73,12 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 4. 抽出 bridge pair 为独立模块，先跑去 bridge baseline，再跑去 FTA、去 k=2 的消融。
 5. 修改 best checkpoint 和日志口径，新增以 R1 选择 best 的路径，避免继续默认按 RSum 做主要判断。
 
+## 2026-05-21 - R1-oriented 模块化重构
+
+已完成第一步代码拆分：
+
+- per-id sampling 拆到 `datasets/per_id_sampling.py`。
+- CDA、FTA、bridge loss 组装拆到 `model/finetune_losses.py`。
+- 新增 `BEST_METRIC` / `--best_metric`，默认 `R1`，后续 `best0` 按 R1 保存。
+
+这次重构不改变已有 loss 数学形式，只把开关边界拆清楚，方便后续跑去 bridge、去 FTA、去 k=2 的 baseline/ablation。

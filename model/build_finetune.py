@@ -1,4 +1,5 @@
 from model import objectives
+from model.finetune_losses import compute_bridge_losses, compute_cda_loss, compute_fta_loss
 from .clip_model import ResidualAttentionBlock, ResidualCrossAttentionBlock, Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
 import numpy as np
 import torch
@@ -264,27 +265,10 @@ class IRRA(nn.Module):
         logit_scale = self.logit_scale
 
         if 'cda' in self.current_task:
-            if g_i_feats is None:
-                raise ValueError("cda loss requires ground image features, but the current batch does not provide them.")
-            ret.update({'cda_loss': objectives.compute_selective_align_loss(i_feats, g_i_feats, t_feats, batch['pids'], logit_scale)})
-            # ret.update({'cda_loss': objectives.compute_sdm(i_feats, t_feats, batch['pids'], logit_scale)}) # 仅使用这个就是Base
+            ret.update({'cda_loss': compute_cda_loss(i_feats, g_i_feats, t_feats, batch['pids'], logit_scale)})
 
         if 'bridge' in self.current_task:
-            if g_i_feats is None:
-                raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")
-            bridge_terms = objectives.compute_ground_to_aerial_bridge_terms(
-                i_feats,
-                g_i_feats,
-                t_feats,
-                batch['pids'],
-                logit_scale,
-                distill_temp=self.args.bridge_distill_temp,
-            )
-            weighted_pair_loss = bridge_terms["pair_loss"] * self.args.bridge_pair_weight * self.args.bridge_loss_weight
-            weighted_distill_loss = bridge_terms["distill_loss"] * self.args.bridge_distill_weight * self.args.bridge_loss_weight
-            ret.update({'bridge_pair_loss': weighted_pair_loss})
-            ret.update({'bridge_distill_loss': weighted_distill_loss})
-            ret.update({'bridge_loss': weighted_pair_loss + weighted_distill_loss})
+            ret.update(compute_bridge_losses(self.args, i_feats, g_i_feats, t_feats, batch['pids'], logit_scale))
 
         if 'proto' in self.current_task:
             if not hasattr(self, "aerial_prototypes") or self.aerial_prototypes is None:
@@ -316,26 +300,15 @@ class IRRA(nn.Module):
             ret.update({'_track_memory_image_feats': i_feats.detach()})
 
         if 'fta' in self.current_task:
-            with torch.autocast(dtype=torch.float16, device_type='cuda'):
-                query_v, query_t = self.build_fta_queries(i_feats, t_feats)
-                Q_v = self.cross_former(query_v.half(), image_feats, image_feats) 
-                Q_t = self.cross_former(query_t.half(), text_feats, text_feats)  # 
-
-            # v2 cross-modal membership
-            with torch.autocast(dtype=torch.float16, device_type='cuda'):
-                mu_t2v = self.compute_fuzzy_membership(Q_t, t_feats)
-                mu_v2t = self.compute_fuzzy_membership(Q_v, i_feats)
-
-            Q_t = F.normalize(Q_t, dim=-1) # [b,4,512]
-            Q_v = F.normalize(Q_v, dim=-1) # [b,4,512]
-
-            t2v_simi = torch.einsum('bkd,Bkd->bBk', Q_t, Q_v)
-            v2t_simi = torch.einsum('bkd,Bkd->bBk', Q_v, Q_t)
-            mu_and = mu_t2v * mu_v2t
-            S_t2v = (t2v_simi * mu_and).mean(dim=-1)
-            S_v2t = (v2t_simi * mu_and).mean(dim=-1) 
-
-            ret.update({'fta_loss':0.5*objectives.compute_fa_loss(S_t2v, S_v2t, batch['pids'], logit_scale)})
+            ret.update({'fta_loss': compute_fta_loss(
+                self,
+                image_feats,
+                text_feats,
+                i_feats,
+                t_feats,
+                batch['pids'],
+                logit_scale,
+            )})
 
         if 'cmpm' in self.current_task:
             ret.update({'cmpm_loss':objectives.compute_cmpm(i_feats, t_feats, batch['pids'])})

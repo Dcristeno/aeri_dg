@@ -55,7 +55,18 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
     tb_writer = SummaryWriter(log_dir=args.output_dir)
 
-    best_rsum = 0.0
+    best_metric_aliases = {
+        "r1": "R1",
+        "r5": "R5",
+        "r10": "R10",
+        "rsum": "RSum",
+        "map": "mAP",
+        "minp": "mINP",
+    }
+    raw_best_metric = str(getattr(args, "best_metric", "R1")).strip()
+    best_metric_name = best_metric_aliases.get(raw_best_metric.lower(), raw_best_metric)
+    best_metric_key = f"t2i_{best_metric_name}"
+    best_metric_value = 0.0
     best_epoch = None
 
     # train
@@ -134,19 +145,22 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
                 .format(epoch, time_per_batch,
                         train_loader.batch_size / time_per_batch))
         if evaluator is not None and eval_period > 0 and epoch % eval_period == 0:
-            logger.info(f"best RSum: {best_rsum}")
+            logger.info(f"best {best_metric_name}: {best_metric_value}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 if args.distributed:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
                 else:
                     eval_metrics = evaluator.eval(model.module.eval(), return_details=True)
-                rsum = eval_metrics["t2i_RSum"]
+                if best_metric_key not in eval_metrics:
+                    supported_metrics = ", ".join(sorted(key.replace("t2i_", "") for key in eval_metrics))
+                    raise ValueError(f"Unsupported best_metric: {best_metric_name}. Supported metrics: {supported_metrics}")
+                current_metric_value = eval_metrics[best_metric_key]
                 if swanlab_run is not None:
                     swanlab_run.log({"epoch": epoch, **{f"val/{k}": v for k, v in eval_metrics.items()}})
                 torch.cuda.empty_cache()
-                if best_rsum < rsum:
-                    best_rsum = rsum
+                if best_metric_value < current_metric_value:
+                    best_metric_value = current_metric_value
                     arguments["epoch"] = epoch
                     best_epoch = epoch
                     checkpointer.save("best0", **arguments)
@@ -154,7 +168,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     if get_rank() == 0:
         checkpointer.save("final", **arguments)
         if best_epoch is not None:
-            logger.info(f"best RSum: {best_rsum} at epoch {best_epoch}")
+            logger.info(f"best {best_metric_name}: {best_metric_value} at epoch {best_epoch}")
         else:
             logger.info("No intermediate validation was run. Saved final checkpoint as final.pth")
 
