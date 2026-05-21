@@ -19,6 +19,7 @@
 - 配置：`cda`，原始 full sampler，`TRAIN_SAMPLES_PER_ID=0`
 - early R1-best：epoch 4，`R1=44.976`
 - 用途：最小 baseline，不包含 k=2、FTA、bridge
+- 结论：后续 SwanLab 曲线所有验证指标继续下行，建议提前停止，不必跑满 60 epoch。
 
 后续优化目标切换为 R1 效率。记录和代码都要优先支持 R1-best 选择与 R1-oriented ablation。
 

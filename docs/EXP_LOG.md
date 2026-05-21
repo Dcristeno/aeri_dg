@@ -93,9 +93,9 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 - 论文叙事口径：`CDA + 原始采样` 是 baseline，random `k=2` 是独立创新模块，`FTA+Bridge` 是第三创新点的联合模块。
 - 下一条优先实验：`aeri_cda_fullsample_r1base`。
 
-## 2026-05-21 - `aeri_cda_fullsample_r1base` early record
+## 2026-05-21 - `aeri_cda_fullsample_r1base` early-stop record
 
-- 状态：running，当前记录到 epoch 11
+- 状态：early-stop recommended，日志明细记录到 epoch 11，SwanLab 曲线显示后续仍整体下行
 - SwanLab 项目：`CFAN`
 - SwanLab 链接：https://swanlab.cn/@Dcristen/CFAN/runs/71dclnjlnizwkjew9l5je
 - 对比基准：self，作为纯 baseline
@@ -123,8 +123,12 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 | 10 | t2i | 42.957 | 62.905 | 71.796 | 177.658 | 41.224 | 28.009 |
 | 11 | t2i | 41.475 | 60.642 | 69.582 | 171.698 | 40.197 | 27.678 |
 
+### 后续曲线判断
+
+用户补充的 SwanLab 截图显示，在 epoch 11 之后，`val/t2i_R1`、`R5`、`R10`、`RSum`、`mAP`、`mINP` 均继续围绕下行趋势震荡，没有回到 early peak。该实验可以作为纯 CDA/full-sampling 的低锚点 baseline，不建议继续等待满 60 epoch 再启动下一组消融。
+
 备注：
 
 - trainer 当前按 `BEST_METRIC=R1` 保存 best0，日志显示 best R1 在 epoch 5 后保持为 `44.97639083862305`，对应 epoch 4 的验证结果。
 - full sampler 每轮约 `1188` iterations，单轮约 `5.0 min`，明显慢于 random `k=2` 的 `111` iterations。
-- 该 run 仍在进行，完成后需要用最终日志更新 `docs/runs.csv` 和本节。
+- 若服务器还在跑，可停止该 run，保留 epoch 4 的 `best0` 作为 baseline checkpoint。
