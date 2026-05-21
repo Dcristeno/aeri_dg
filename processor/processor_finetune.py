@@ -1,24 +1,17 @@
-import collections
 import logging
-import random
 import time
 import torch
-from datasets.build import build_filter_loader
 from datasets.build import build_finetune_train_loader
-from model import objectives
 from utils.meter import AverageMeter
 from utils.metrics import Evaluator
 from utils.comm import get_rank, synchronize
 from torch.utils.tensorboard import SummaryWriter
-from prettytable import PrettyTable
-import torch.nn.functional as F
 
 def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
              scheduler, checkpointer, trainset, swanlab_run=None):
 
     log_period = args.log_period
     eval_period = args.eval_period
-    device = "cuda"
     num_epoch = args.num_epoch
     arguments = {}
     arguments["num_epoch"] = num_epoch

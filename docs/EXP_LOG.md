@@ -80,5 +80,6 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 - per-id sampling 拆到 `datasets/per_id_sampling.py`。
 - CDA、FTA、bridge loss 组装拆到 `model/finetune_losses.py`。
 - 新增 `BEST_METRIC` / `--best_metric`，默认 `R1`，后续 `best0` 按 R1 保存。
+- `Evaluator.eval()` 默认返回值已从 `t2i_RSum` 改为 `t2i_R1`，避免旧调用路径继续隐式使用 RSum。
 
 这次重构不改变已有 loss 数学形式，只把开关边界拆清楚，方便后续跑去 bridge、去 FTA、去 k=2 的 baseline/ablation。

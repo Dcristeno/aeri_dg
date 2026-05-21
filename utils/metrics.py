@@ -111,4 +111,4 @@ class Evaluator():
         self.logger.info('\n' + str(table))
         if return_details:
             return results
-        return results["t2i_RSum"]
+        return results["t2i_R1"]

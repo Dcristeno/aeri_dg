@@ -1,7 +1,6 @@
 from model import objectives
 from model.finetune_losses import compute_bridge_losses, compute_cda_loss, compute_fta_loss
-from .clip_model import ResidualAttentionBlock, ResidualCrossAttentionBlock, Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
-import numpy as np
+from .clip_model import Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
 import torch
 import torch.nn as nn
 from collections import OrderedDict
