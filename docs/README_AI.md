@@ -12,6 +12,14 @@
 - R1-best：epoch 51，`R1=49.064`
 - trainer RSum-best：epoch 57，`RSum=190.97866821289062`
 
+正在运行：
+
+- `aeri_cda_fullsample_r1base`
+- SwanLab：https://swanlab.cn/@Dcristen/CFAN/runs/71dclnjlnizwkjew9l5je
+- 配置：`cda`，原始 full sampler，`TRAIN_SAMPLES_PER_ID=0`
+- early R1-best：epoch 4，`R1=44.976`
+- 用途：最小 baseline，不包含 k=2、FTA、bridge
+
 后续优化目标切换为 R1 效率。记录和代码都要优先支持 R1-best 选择与 R1-oriented ablation。
 
 ## 当前 Baseline

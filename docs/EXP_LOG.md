@@ -92,3 +92,39 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 - `configs/aeri_cfan_baseline.yaml` 同步改为 `loss_names: cda`。
 - 论文叙事口径：`CDA + 原始采样` 是 baseline，random `k=2` 是独立创新模块，`FTA+Bridge` 是第三创新点的联合模块。
 - 下一条优先实验：`aeri_cda_fullsample_r1base`。
+
+## 2026-05-21 - `aeri_cda_fullsample_r1base` early record
+
+- 状态：running，当前记录到 epoch 11
+- SwanLab 项目：`CFAN`
+- SwanLab 链接：https://swanlab.cn/@Dcristen/CFAN/runs/71dclnjlnizwkjew9l5je
+- 对比基准：self，作为纯 baseline
+- 训练目标：`cda`
+- 采样策略：原始 full training sampler，`TRAIN_SAMPLES_PER_ID=0`
+- 训练轮数：60
+- seed：默认 `SEED=1`
+- 当前 R1-best：epoch 4，`R1=44.976`
+
+这条实验是论文消融的最小 baseline：不包含 random `k=2` sampling，不包含 FTA，不包含 bridge。
+
+### Early Curve
+
+| epoch | task | R1 | R5 | R10 | RSum | mAP | mINP |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | t2i | 41.492 | 59.941 | 68.881 | 170.314 | 39.181 | 26.430 |
+| 2 | t2i | 44.113 | 62.889 | 71.210 | 178.212 | 42.085 | 29.003 |
+| 3 | t2i | 44.520 | 63.540 | 71.617 | 179.678 | 42.680 | 29.560 |
+| 4 | t2i | 44.976 | 63.068 | 71.943 | 179.987 | 42.950 | 29.776 |
+| 5 | t2i | 44.113 | 61.895 | 71.356 | 177.365 | 42.295 | 29.519 |
+| 6 | t2i | 43.804 | 62.221 | 70.949 | 176.974 | 42.486 | 29.961 |
+| 7 | t2i | 44.797 | 63.459 | 72.285 | 180.541 | 42.977 | 30.047 |
+| 8 | t2i | 43.755 | 62.824 | 71.324 | 177.903 | 41.954 | 28.935 |
+| 9 | t2i | 43.625 | 63.100 | 71.682 | 178.407 | 42.043 | 29.052 |
+| 10 | t2i | 42.957 | 62.905 | 71.796 | 177.658 | 41.224 | 28.009 |
+| 11 | t2i | 41.475 | 60.642 | 69.582 | 171.698 | 40.197 | 27.678 |
+
+备注：
+
+- trainer 当前按 `BEST_METRIC=R1` 保存 best0，日志显示 best R1 在 epoch 5 后保持为 `44.97639083862305`，对应 epoch 4 的验证结果。
+- full sampler 每轮约 `1188` iterations，单轮约 `5.0 min`，明显慢于 random `k=2` 的 `111` iterations。
+- 该 run 仍在进行，完成后需要用最终日志更新 `docs/runs.csv` 和本节。
