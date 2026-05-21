@@ -4,7 +4,7 @@
 
 ## 当前最好结果
 
-当前以 R1 为主要优化目标。代码默认 baseline 已调整为 `CDA`，后续论文/消融以 `cda` 作为 loss baseline，`FTA+Bridge` 作为联合细粒度 bridge 创新模块。
+当前以 R1 为主要优化目标。代码默认 baseline 已调整为 `CDA + 原始采样`，后续论文/消融以 `cda` + 原始采样作为最小 baseline；random `k=2` sampling 和 `FTA+Bridge` 都作为后续创新模块单独加入。
 
 已完成的最好 R1 full-module run：
 
@@ -24,7 +24,7 @@
 - 状态：完成
 - SwanLab 项目：`CFAN`
 - SwanLab 链接：https://swanlab.cn/@Dcristen/CFAN/runs/xu0rwgzsh3cokyjbcaoy6
-- 对比基准：后续需要补跑 `cda` baseline；该实验作为 FTA+Bridge full-module 结果
+- 对比基准：后续需要补跑 `cda` + 原始采样 baseline；该实验作为 FTA+Bridge + k=2 full-module 结果
 - 训练目标：`cda+fta+bridge`
 - 采样策略：`TRAIN_SAMPLES_PER_ID=2`，`TRAIN_SAMPLE_STRATEGY=random`
 - 训练轮数：60
@@ -63,7 +63,7 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 
 - `cda+fta+bridge` + random `k=2` + pair-only bridge 可以达到 `R1=49.064`。
 - 当前 bridge loss 与 bridge pair loss 相等，说明 distill 项已关闭，实验确认为 pair-only bridge。
-- 后续需要先补跑 `cda` + random `k=2`，把它作为 loss baseline，再对比 `cda+fta`、`cda+bridge`、`cda+fta+bridge`。
+- 后续需要先补跑 `cda` + 原始采样，把它作为最小 baseline，再分别加入 random `k=2`、FTA、bridge、FTA+Bridge 做消融。
 
 ## 下一步计划
 
@@ -71,8 +71,8 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 
 1. 分离 baseline 主干：保留最小可运行 finetune 训练、评估、日志与 SwanLab 记录。
 2. 抽出 `k=2` random per-id sampling 为独立模块，便于和 full sampling / no sampling 对比。
-3. 以 `cda` 作为 baseline loss。
-4. 抽出 FTA 和 bridge pair 为联合创新模块，同时保留单独开关做消融。
+3. 以 `cda` + 原始采样作为 baseline。
+4. 抽出 random `k=2`、FTA 和 bridge pair 为创新模块，同时保留单独开关做消融。
 5. 修改 best checkpoint 和日志口径，新增以 R1 选择 best 的路径，避免继续默认按 RSum 做主要判断。
 
 ## 2026-05-21 - R1-oriented 模块化重构
@@ -90,5 +90,5 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 
 - 默认 `LOSS_NAMES` 从 `cda+fta` 改为 `cda`。
 - `configs/aeri_cfan_baseline.yaml` 同步改为 `loss_names: cda`。
-- 论文叙事口径：`CDA` 是 baseline，`FTA+Bridge` 是第三创新点的联合模块。
-- 下一条优先实验：`aeri_cda_k2_r1base`。
+- 论文叙事口径：`CDA + 原始采样` 是 baseline，random `k=2` 是独立创新模块，`FTA+Bridge` 是第三创新点的联合模块。
+- 下一条优先实验：`aeri_cda_fullsample_r1base`。

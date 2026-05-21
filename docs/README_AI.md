@@ -16,16 +16,16 @@
 
 ## 当前 Baseline
 
-当前代码默认 baseline 已调整为 `CDA`。直接运行 `bash finetune.sh` 时，默认 `LOSS_NAMES=cda`；论文叙事中用 CDA 作为 loss baseline，FTA+Bridge 作为联合细粒度 bridge 创新模块。
+当前代码默认 baseline 已调整为 `CDA + 原始采样`。直接运行 `bash finetune.sh` 时，默认 `LOSS_NAMES=cda` 且 `TRAIN_SAMPLES_PER_ID=0`；论文叙事中用 CDA 作为最小 baseline，random `k=2` sampling 和 FTA+Bridge 都是后续创新模块。
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_k2_r1base' \
-SWANLAB_EXPERIMENT='aeri_cda_k2_r1base' \
+RUN_NAME='aeri_cda_fullsample_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_fullsample_r1base' \
 LOSS_NAMES='cda' \
-TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLES_PER_ID=0 \
 TRAIN_SAMPLE_STRATEGY='random' \
 BEST_METRIC=R1 \
 CUDA_VISIBLE_DEVICES=0 \
@@ -49,19 +49,31 @@ bash finetune.sh
 
 ## 建议消融顺序
 
-1. CDA baseline：`cda` + random `k=2`。
-2. 细粒度模块：`cda+fta` + random `k=2`。
-3. bridge 模块：`cda+bridge` + random `k=2`。
-4. FTA+Bridge 联合模块：`cda+fta+bridge` + random `k=2`。
-5. 去 k=2：`cda+fta+bridge` + 原始采样。
+1. CDA baseline：`cda` + 原始采样。
+2. k=2 模块：`cda` + random `k=2`。
+3. 细粒度模块：`cda+fta` + 原始采样。
+4. bridge 模块：`cda+bridge` + 原始采样。
+5. FTA+Bridge 联合模块：`cda+fta+bridge` + 原始采样。
+6. 完整组合：`cda+fta+bridge` + random `k=2`。
 
 建议命令：
 
 ```bash
-# CDA baseline：验证 cda + random k=2 的 R1
+# CDA baseline：验证 cda + 原始采样的 R1
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_k2_r1base' \
-SWANLAB_EXPERIMENT='aeri_cda_k2_r1base' \
+RUN_NAME='aeri_cda_fullsample_r1base' \
+SWANLAB_EXPERIMENT='aeri_cda_fullsample_r1base' \
+LOSS_NAMES='cda' \
+TRAIN_SAMPLES_PER_ID=0 \
+TRAIN_SAMPLE_STRATEGY='random' \
+BEST_METRIC=R1 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+
+# k=2 模块：只验证随机选图创新点
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_k2_r1' \
+SWANLAB_EXPERIMENT='aeri_cda_k2_r1' \
 LOSS_NAMES='cda' \
 TRAIN_SAMPLES_PER_ID=2 \
 TRAIN_SAMPLE_STRATEGY='random' \
@@ -69,13 +81,12 @@ BEST_METRIC=R1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 
-# FTA+Bridge 联合模块：验证第三创新点
+# FTA+Bridge 联合模块：验证第三创新点，不叠加 k=2
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_fta_bridge_pair_k2_r1' \
-SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_k2_r1' \
+RUN_NAME='aeri_cda_fta_bridge_pair_fullsample_r1' \
+SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_fullsample_r1' \
 LOSS_NAMES='cda+fta+bridge' \
-TRAIN_SAMPLES_PER_ID=2 \
-TRAIN_SAMPLE_STRATEGY='random' \
+TRAIN_SAMPLES_PER_ID=0 \
 BRIDGE_LOSS_WEIGHT=2.0 \
 BRIDGE_PAIR_WEIGHT=1.0 \
 BRIDGE_DISTILL_WEIGHT=0.0 \
@@ -83,12 +94,13 @@ BEST_METRIC=R1 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 
-# 去 k=2：验证完整 loss 在原始采样下的 R1
+# 完整组合：FTA+Bridge + random k=2
 USE_SWANLAB=1 \
-RUN_NAME='aeri_cda_fta_bridge_pair_fullsample_r1base' \
-SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_fullsample_r1base' \
+RUN_NAME='aeri_cda_fta_bridge_pair_k2_r1' \
+SWANLAB_EXPERIMENT='aeri_cda_fta_bridge_pair_k2_r1' \
 LOSS_NAMES='cda+fta+bridge' \
-TRAIN_SAMPLES_PER_ID=0 \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random' \
 BRIDGE_LOSS_WEIGHT=2.0 \
 BRIDGE_PAIR_WEIGHT=1.0 \
 BRIDGE_DISTILL_WEIGHT=0.0 \

@@ -47,18 +47,24 @@ bash finetune.sh
 
 To enable SwanLab logging for finetuning, add `USE_SWANLAB=1`.
 
-The default finetune loss is the clean `CDA` baseline. To run this baseline with AERI per-ID sparse sampling, for example `k=2`, run:
+The default finetune setup is the clean `CDA` baseline with the original training sampler. Run:
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 LOSS_NAMES='cda' \
-TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLES_PER_ID=0 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
-Use `CDA` as the baseline anchor for ablations. Treat FTA and bridge as add-on modules, for example:
+Use `CDA` as the baseline anchor for ablations. Treat random `k=2` sampling, FTA, and bridge as add-on modules, for example:
+
+```bash
+TRAIN_SAMPLES_PER_ID=2 \
+```
+
+or:
 
 ```bash
 LOSS_NAMES='cda+fta+bridge' \
