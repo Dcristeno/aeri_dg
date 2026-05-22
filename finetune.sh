@@ -11,6 +11,8 @@ SEED="${SEED:-1}"
 FINETUNE_EVAL_MODE="${FINETUNE_EVAL_MODE:-test}"
 BEST_METRIC="${BEST_METRIC:-R1}"
 LOSS_NAMES="${LOSS_NAMES:-cda}"
+BATCH_SIZE="${BATCH_SIZE:-64}"
+TEST_BATCH_SIZE="${TEST_BATCH_SIZE:-512}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-0}"
 FINETUNE_VAL_RATIO="${FINETUNE_VAL_RATIO:-0.1}"
 FINETUNE_VAL_SEED="${FINETUNE_VAL_SEED:-1}"
@@ -45,7 +47,8 @@ args=(
   --finetune_eval_mode "${FINETUNE_EVAL_MODE}"
   --best_metric "${BEST_METRIC}"
   --img_aug
-  --batch_size 64
+  --batch_size "${BATCH_SIZE}"
+  --test_batch_size "${TEST_BATCH_SIZE}"
   --MLM
   --dataset_name "${DATASET_NAME}"
   --pretrain_choice "${PRETRAIN_CHOICE}"

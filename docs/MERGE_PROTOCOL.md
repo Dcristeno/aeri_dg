@@ -329,6 +329,22 @@ FINETUNE_INIT=none
 
 否则会出现 `positional_embedding` 或 `conv1.weight` shape mismatch。
 
+### ViT-L/14 显存设置
+
+`ViT-L/14` 约 `499M` 参数，默认 `BATCH_SIZE=64` 会在 24GB GPU 上 OOM。训练时先用：
+
+```bash
+BATCH_SIZE=16
+TEST_BATCH_SIZE=128
+```
+
+如果仍 OOM，再降到：
+
+```bash
+BATCH_SIZE=8
+TEST_BATCH_SIZE=64
+```
+
 ## 记录规范
 
 每次融合实验必须记录：
