@@ -1,0 +1,32 @@
+{
+  "experts": [
+    {
+      "name": "vit_b16_cda",
+      "config_file": "logs/aeri_cda_vit_b16/configs.yaml",
+      "checkpoint": "logs/aeri_cda_vit_b16/best0.pth",
+      "pretrain_choice": "ViT-B/16",
+      "loss_names": "cda"
+    },
+    {
+      "name": "vit_b32_cda",
+      "config_file": "logs/aeri_cda_vit_b32/configs.yaml",
+      "checkpoint": "logs/aeri_cda_vit_b32/best0.pth",
+      "pretrain_choice": "ViT-B/32",
+      "loss_names": "cda"
+    },
+    {
+      "name": "rn50_cda",
+      "config_file": "logs/aeri_cda_rn50/configs.yaml",
+      "checkpoint": "logs/aeri_cda_rn50/best0.pth",
+      "pretrain_choice": "RN50",
+      "loss_names": "cda"
+    },
+    {
+      "name": "rn101_cda",
+      "config_file": "logs/aeri_cda_rn101/configs.yaml",
+      "checkpoint": "logs/aeri_cda_rn101/best0.pth",
+      "pretrain_choice": "RN101",
+      "loss_names": "cda"
+    }
+  ]
+}

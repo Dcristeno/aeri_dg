@@ -132,3 +132,27 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 - trainer 当前按 `BEST_METRIC=R1` 保存 best0，日志显示 best R1 在 epoch 5 后保持为 `44.97639083862305`，对应 epoch 4 的验证结果。
 - full sampler 每轮约 `1188` iterations，单轮约 `5.0 min`，明显慢于 random `k=2` 的 `111` iterations。
 - 若服务器还在跑，可停止该 run，保留 epoch 4 的 `best0` 作为 baseline checkpoint。
+
+## 2026-05-22 - 模型融合创新点口径
+
+当前决定把模型融合从“融合同一条方法链路的几个消融 checkpoint”调整为“构建多样化地空图文检索专家池，并设计地空方向专用 merge 准则”。
+
+消融池仍然用于证明模块有效：
+
+| 实验 | 用途 |
+| --- | --- |
+| `CDA` | 最小 baseline |
+| `CDA + k2` | 验证随机 k 图采样 |
+| `CDA + FTA+Bridge` | 验证细粒度与跨视角桥接对齐 |
+| `CDA + FTA+Bridge + k2` | 完整方法 |
+
+融合池不再直接使用这一组消融模型作为主体，而是按四个方向构建：
+
+1. 不同 backbone：结构多样性，例如 `ViT-B/16`、`ViT-B/32`、`RN50`、`RN101`。
+2. 不同预训练：知识来源多样性，例如 OpenAI CLIP、OpenCLIP、EVA-CLIP、SigLIP、RemoteCLIP/GeoCLIP。
+3. 不同训练目标：任务能力多样性，例如 CDA、hard negative、FTA、Bridge、domain/view alignment。
+4. 地空方向专用 merge：融合准则要利用地空图文检索的 rank structure、cross-view cycle、local-global alignment、hard-negative separability 和 expert complementarity。
+
+方法暂定名：`Ground-Aerial Retrieval-Aware Expert Merge` / `GAR-EM`。
+
+详细协议见 `docs/MERGE_PROTOCOL.md`。

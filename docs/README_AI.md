@@ -123,3 +123,13 @@ bash finetune.sh
 - `docs/EXP_LOG.md`
 - `docs/runs.csv`
 - 如有错误，写入 `docs/ERROR_LOG.md`
+
+## 模型融合方向
+
+模型融合创新点单独维护在 `docs/MERGE_PROTOCOL.md`。当前口径：
+
+- 消融池：`CDA`、`CDA+k2`、`CDA+FTA+Bridge`、`CDA+FTA+Bridge+k2`，只用于证明模块有效。
+- 融合池：不直接融合上述消融模型，而是构建真正不同的地空图文检索专家。
+- 专家池四个方向：不同 backbone、不同预训练、不同训练目标、地空方向专用 merge。
+- 地空方向专用 merge 暂定为 `Ground-Aerial Retrieval-Aware Expert Merge` / `GAR-EM`，用 rank consistency、cross-view cycle consistency、local-global alignment、hard-negative separability、expert complementarity 和 uncertainty 选择融合权重。
+- 第一版工具：`tools/gar_em_score_fusion.py`，专家池模板见 `docs/merge_pool.example.json`。
