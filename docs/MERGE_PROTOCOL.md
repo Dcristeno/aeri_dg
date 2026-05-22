@@ -262,13 +262,14 @@ python tools/gar_em_score_fusion.py \
 | mean | 48.526 | 65.413 | 74.304 | 188.243 | 46.985 | 34.727 |
 | fixed `0.9,0.1` | 49.324 | 67.269 | 75.444 | 192.037 | 47.389 | 34.438 |
 | GAR-EM adaptive v1 | 48.135 | 64.827 | 73.652 | 186.615 | 46.718 | 34.291 |
+| GAR-EM prior-adaptive `0.9,0.1` | 49.487 | 67.009 | 75.102 | 191.597 | 47.567 | 34.732 |
 
 结论：
 
 - 弱异构专家可能提供互补排序信息。
 - 直接 mean fusion 会拖累主模型。
 - 无先验 adaptive v1 对弱专家约束不足，需要加入 expert reliability prior。
-- 后续优先使用 `gar_em_prior_adaptive`，例如 `--prior_weights 0.9,0.1`。
+- `gar_em_prior_adaptive` 当前达到 `R1=49.487`，相比 full-module 主专家 `49.064` 提升 `+0.423`，相比 fixed `0.9,0.1` 提升 `+0.163`。
 
 ## 专家训练命令模板
 

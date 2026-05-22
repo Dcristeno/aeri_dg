@@ -170,9 +170,11 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 | mean | 48.526 | 65.413 | 74.304 | 188.243 | 46.985 | 34.727 |
 | fixed `0.9,0.1` | 49.324 | 67.269 | 75.444 | 192.037 | 47.389 | 34.438 |
 | GAR-EM adaptive v1 | 48.135 | 64.827 | 73.652 | 186.615 | 46.718 | 34.291 |
+| GAR-EM prior-adaptive `0.9,0.1` | 49.487 | 67.009 | 75.102 | 191.597 | 47.567 | 34.732 |
 
 结论：
 
 - fixed `0.9,0.1` 相比 full-module R1-best `49.064` 提升 `+0.260`，说明弱异构 backbone 仍可能补充主模型漏检样本。
+- GAR-EM prior-adaptive 相比 full-module R1-best `49.064` 提升 `+0.423`，相比 fixed `0.9,0.1` 继续提升 `+0.163`，是当前融合最好 R1。
 - mean fusion 和无先验 GAR-EM adaptive v1 都下降，说明弱专家不能无约束进入融合。
-- 下一版 GAR-EM 需要加入 expert reliability prior，保留主专家强度，同时允许 query 级互补偏移。
+- expert reliability prior 是必要组件：它保留主专家强度，同时允许 query 级互补偏移。
