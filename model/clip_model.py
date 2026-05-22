@@ -510,6 +510,14 @@ class CLIP(nn.Module):
         for k, v in param_dict.items():
             if k == 'visual.positional_embedding' and v.shape != self.visual.positional_embedding.shape:
                 v = resize_pos_embed(v, self.visual.positional_embedding, self.visual.num_y, self.visual.num_x)
+            elif (
+                k == 'visual.attnpool.positional_embedding'
+                and hasattr(self.visual, "attnpool")
+                and v.shape != self.visual.attnpool.positional_embedding.shape
+            ):
+                hight = self.visual.input_resolution[0] // 32
+                width = self.visual.input_resolution[1] // 32
+                v = resize_attnpool_pos_embed(v, self.visual.attnpool.positional_embedding, hight, width)
             elif k == 'positional_embedding' and v.shape != self.positional_embedding.shape:
                 v = resize_text_pos_embed(v, self.context_length)
             # elif 'visual.attnpool' in k and '.positional_embedding' not in k:
@@ -554,6 +562,35 @@ def resize_pos_embed(posemb, posemb_new, hight, width):
     posemb_grid = posemb_grid.permute(0, 2, 3, 1).reshape(1, hight * width, -1)
     posemb = torch.cat([posemb_token, posemb_grid], dim=1)
     return posemb.squeeze(0)
+
+
+def resize_attnpool_pos_embed(posemb, posemb_new, hight, width):
+    posemb = posemb.unsqueeze(0)
+    posemb_new = posemb_new.unsqueeze(0)
+
+    posemb_token, posemb_grid = posemb[:, :1], posemb[0, 1:]
+    gs_old = int(math.sqrt(len(posemb_grid)))
+    print(
+        'Resized attention-pool position embedding from size:{} to size: {} with height:{} width: {}'.format(
+            posemb.shape,
+            posemb_new.shape,
+            hight,
+            width,
+        )
+    )
+    posemb_grid = posemb_grid.reshape(1, gs_old, gs_old, -1).permute(0, 3, 1, 2)
+    posemb_grid = F.interpolate(posemb_grid, size=(hight, width), mode='bilinear')
+    posemb_grid = posemb_grid.permute(0, 2, 3, 1).reshape(1, hight * width, -1)
+    posemb = torch.cat([posemb_token, posemb_grid], dim=1)
+    return posemb.squeeze(0)
+
+
+def resize_text_pos_embed(posemb, context_length):
+    if posemb.shape[0] == context_length:
+        return posemb
+    posemb = posemb.unsqueeze(0).permute(0, 2, 1)
+    posemb = F.interpolate(posemb, size=context_length, mode='linear')
+    return posemb.permute(0, 2, 1).squeeze(0)
 
 
 def convert_weights(model: nn.Module):
