@@ -4,7 +4,7 @@ set -euo pipefail
 DATASET_NAME="${DATASET_NAME:-AERI-PEDES}"
 DATA_ROOT="${DATA_ROOT:-/home/wuyong/datasets}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
-FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
+FINETUNE_INIT="${FINETUNE_INIT-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
 PRETRAIN_CHOICE="${PRETRAIN_CHOICE:-ViT-B/16}"
 RUN_NAME="${RUN_NAME:-cfan_finetune}"
 SEED="${SEED:-1}"

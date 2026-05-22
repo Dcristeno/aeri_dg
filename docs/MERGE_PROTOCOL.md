@@ -270,6 +270,14 @@ bash finetune.sh
 
 首轮建议只改 `PRETRAIN_CHOICE` 和 `RUN_NAME`，保持 CDA、full sampler、R1-best 口径不变，避免融合池和消融池混在一起。
 
+如果切换到和 HAM 初始化 checkpoint 不同结构的 backbone，例如 `ViT-B/32`、`RN50` 或 `RN101`，不要加载默认 `ViT-B/16` HAM checkpoint。此时显式设置：
+
+```bash
+FINETUNE_INIT=none
+```
+
+否则会出现 `positional_embedding` 或 `conv1.weight` shape mismatch。
+
 ## 记录规范
 
 每次融合实验必须记录：

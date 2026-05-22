@@ -84,9 +84,12 @@ if __name__ == '__main__':
     args.track_memory_num_pids = max((sample[0] for sample in trainset), default=-1) + 1
     model = build_finetune_model(args, num_classes)
     logger.info('Total params: %2.fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
-    if args.finetune:
-        logger.info("loading {} model".format(args.finetune))
-        param_dict = torch.load(args.finetune,map_location='cpu')['model']
+    finetune_path = str(args.finetune).strip()
+    if finetune_path.lower() in {"", "none", "null"}:
+        finetune_path = ""
+    if finetune_path:
+        logger.info("loading {} model".format(finetune_path))
+        param_dict = torch.load(finetune_path,map_location='cpu')['model']
         for k in list(param_dict.keys()):
             refine_k = k.replace('module.','')
             param_dict[refine_k] = param_dict[k].detach().clone()
