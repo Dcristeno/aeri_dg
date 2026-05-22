@@ -232,6 +232,8 @@ python tools/gar_em_score_fusion.py \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/gar_em_v1 \
   --topk 10 \
+  --prior_weights 0.9,0.1 \
+  --prior_strength 1.0 \
   --adaptive_temperature 0.5 \
   --device cuda
 ```
@@ -247,8 +249,26 @@ python tools/gar_em_score_fusion.py \
 - mean score fusion。
 - optional fixed-weight score fusion。
 - GAR-EM adaptive score fusion。
+- GAR-EM prior-adaptive score fusion：用于弱但互补的异构专家，保留主专家可靠性先验。
 
 第一版 GAR-EM 已实现 rank consistency、hard-negative separability、expert complementarity 和 retrieval uncertainty。`Cross-View Cycle Consistency` 与 `Local-Global Alignment` 先保留为第二版接口，需要后续让验证 dataloader 显式暴露 ground/aerial/text 三方关系和 query 属性。
+
+### 2026-05-22 ViT-B/16 + ViT-B/32 试验
+
+`ViT-B/32` 使用 full recipe 训练后单模型 R1 只有 `39.065`，低于正式主专家门槛；但与 `ViT-B/16` full expert 做小权重 score fusion 后出现正增益：
+
+| method | R1 | R5 | R10 | RSum | mAP | mINP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| mean | 48.526 | 65.413 | 74.304 | 188.243 | 46.985 | 34.727 |
+| fixed `0.9,0.1` | 49.324 | 67.269 | 75.444 | 192.037 | 47.389 | 34.438 |
+| GAR-EM adaptive v1 | 48.135 | 64.827 | 73.652 | 186.615 | 46.718 | 34.291 |
+
+结论：
+
+- 弱异构专家可能提供互补排序信息。
+- 直接 mean fusion 会拖累主模型。
+- 无先验 adaptive v1 对弱专家约束不足，需要加入 expert reliability prior。
+- 后续优先使用 `gar_em_prior_adaptive`，例如 `--prior_weights 0.9,0.1`。
 
 ## 专家训练命令模板
 

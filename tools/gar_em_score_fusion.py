@@ -134,6 +134,8 @@ def compute_adaptive_weights(
     complement_weight,
     uncertainty_weight,
     temperature,
+    prior_weights=None,
+    prior_strength=0.0,
 ):
     expert_count = len(similarities)
     if expert_count == 1:
@@ -188,7 +190,12 @@ def compute_adaptive_weights(
         + complement_weight * complement_norm
         - uncertainty_weight * uncertainty_norm
     )
-    weights = F.softmax((raw / max(temperature, 1e-6)).t(), dim=1)
+    logits = (raw / max(temperature, 1e-6)).t()
+    if prior_weights is not None and prior_strength > 0:
+        prior = prior_weights.to(logits.device).float().clamp_min(1e-12)
+        prior = prior / prior.sum()
+        logits = logits + prior_strength * torch.log(prior).unsqueeze(0)
+    weights = F.softmax(logits, dim=1)
     components = {
         "rank": rank_norm,
         "hard_negative": hardneg_norm,
@@ -204,18 +211,18 @@ def fuse_similarities(similarities, weights):
     return (stacked * weights.t().unsqueeze(-1)).sum(dim=0)
 
 
-def parse_fixed_weights(raw_weights, expert_count):
+def parse_weight_vector(raw_weights, expert_count, name):
     if not raw_weights:
         return None
     weights = [float(item) for item in raw_weights.split(",")]
     if len(weights) != expert_count:
-        raise ValueError(f"Expected {expert_count} fixed weights, got {len(weights)}.")
+        raise ValueError(f"Expected {expert_count} {name}, got {len(weights)}.")
     tensor = torch.tensor(weights, dtype=torch.float32)
     if torch.any(tensor < 0):
-        raise ValueError("Fixed weights must be non-negative.")
+        raise ValueError(f"{name} must be non-negative.")
     total = tensor.sum().item()
     if total <= 0:
-        raise ValueError("At least one fixed weight must be positive.")
+        raise ValueError(f"At least one {name} value must be positive.")
     return tensor / total
 
 
@@ -268,6 +275,8 @@ def build_args():
     parser.add_argument("--device", default="cuda", help="cuda or cpu.")
     parser.add_argument("--topk", type=int, default=10, help="Top-k used for rank consistency and hard negatives.")
     parser.add_argument("--fixed_weights", default="", help="Comma-separated fixed fusion weights.")
+    parser.add_argument("--prior_weights", default="", help="Comma-separated expert reliability prior for prior-adaptive fusion.")
+    parser.add_argument("--prior_strength", type=float, default=1.0, help="Strength of prior_weights in GAR-EM prior-adaptive fusion.")
     parser.add_argument("--rank_weight", type=float, default=1.0)
     parser.add_argument("--hardneg_weight", type=float, default=0.5)
     parser.add_argument("--complement_weight", type=float, default=0.3)
@@ -325,7 +334,7 @@ def main():
         reference_gids,
     )
 
-    fixed = parse_fixed_weights(cli_args.fixed_weights, len(similarities))
+    fixed = parse_weight_vector(cli_args.fixed_weights, len(similarities), "fixed weights")
     if fixed is not None:
         fixed_weights = fixed.unsqueeze(0).expand(similarities[0].shape[0], -1)
         fusion_metrics["fixed"] = evaluate_similarity(
@@ -349,10 +358,32 @@ def main():
         reference_gids,
     )
 
+    prior = parse_weight_vector(cli_args.prior_weights, len(similarities), "prior weights")
+    prior_adaptive_weights = None
+    if prior is not None:
+        prior_adaptive_weights, prior_components = compute_adaptive_weights(
+            similarities,
+            cli_args.topk,
+            cli_args.rank_weight,
+            cli_args.hardneg_weight,
+            cli_args.complement_weight,
+            cli_args.uncertainty_weight,
+            cli_args.adaptive_temperature,
+            prior_weights=prior,
+            prior_strength=cli_args.prior_strength,
+        )
+        fusion_metrics["gar_em_prior_adaptive"] = evaluate_similarity(
+            fuse_similarities(similarities, prior_adaptive_weights),
+            reference_qids,
+            reference_gids,
+        )
+
     payload = {
         "expert_config": cli_args.expert_config,
         "topk": cli_args.topk,
         "adaptive_temperature": cli_args.adaptive_temperature,
+        "prior_weights": prior.tolist() if prior is not None else None,
+        "prior_strength": cli_args.prior_strength,
         "component_weights": {
             "rank": cli_args.rank_weight,
             "hard_negative": cli_args.hardneg_weight,
@@ -362,6 +393,9 @@ def main():
         "experts": expert_rows,
         "fusion": fusion_metrics,
         "adaptive_weight_mean": adaptive_weights.mean(dim=0).tolist(),
+        "prior_adaptive_weight_mean": prior_adaptive_weights.mean(dim=0).tolist()
+        if prior_adaptive_weights is not None
+        else None,
         "adaptive_component_mean": {
             key: value.mean(dim=1).tolist()
             for key, value in components.items()

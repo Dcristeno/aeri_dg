@@ -156,3 +156,23 @@ epoch 50-60 后段曲线显示 R1 在 49 左右平台化，后续 epochs 的 RSu
 方法暂定名：`Ground-Aerial Retrieval-Aware Expert Merge` / `GAR-EM`。
 
 详细协议见 `docs/MERGE_PROTOCOL.md`。
+
+## 2026-05-22 - `gar_em_vitb16_vitb32_full`
+
+- 状态：完成第一版 score-level fusion 试验
+- 专家 1：`ViT-B/16 + cda+fta+bridge + random k=2`，对应此前 full-module R1-best `49.064`
+- 专家 2：`ViT-B/32 + cda+fta+bridge + random k=2`，SwanLab 链接：https://swanlab.cn/@Dcristen/CFAN/runs/97z6f82ay0yd1u5jgumgv
+- `ViT-B/32` 单模型 best R1：`39.065` at epoch 55
+- 融合输出：`logs/merge/gar_em_vitb16_vitb32_full/gar_em_score_fusion.json`
+
+| method | R1 | R5 | R10 | RSum | mAP | mINP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| mean | 48.526 | 65.413 | 74.304 | 188.243 | 46.985 | 34.727 |
+| fixed `0.9,0.1` | 49.324 | 67.269 | 75.444 | 192.037 | 47.389 | 34.438 |
+| GAR-EM adaptive v1 | 48.135 | 64.827 | 73.652 | 186.615 | 46.718 | 34.291 |
+
+结论：
+
+- fixed `0.9,0.1` 相比 full-module R1-best `49.064` 提升 `+0.260`，说明弱异构 backbone 仍可能补充主模型漏检样本。
+- mean fusion 和无先验 GAR-EM adaptive v1 都下降，说明弱专家不能无约束进入融合。
+- 下一版 GAR-EM 需要加入 expert reliability prior，保留主专家强度，同时允许 query 级互补偏移。
