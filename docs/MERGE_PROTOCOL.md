@@ -250,6 +250,26 @@ python tools/gar_em_score_fusion.py \
 
 第一版 GAR-EM 已实现 rank consistency、hard-negative separability、expert complementarity 和 retrieval uncertainty。`Cross-View Cycle Consistency` 与 `Local-Global Alignment` 先保留为第二版接口，需要后续让验证 dataloader 显式暴露 ground/aerial/text 三方关系和 query 属性。
 
+## 专家训练命令模板
+
+`finetune.sh` 已暴露 `PRETRAIN_CHOICE`，可以直接切换 backbone：
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_vit_b32' \
+SWANLAB_EXPERIMENT='aeri_cda_vit_b32' \
+PRETRAIN_CHOICE='ViT-B/32' \
+LOSS_NAMES='cda' \
+TRAIN_SAMPLES_PER_ID=0 \
+BEST_METRIC=R1 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+首轮建议只改 `PRETRAIN_CHOICE` 和 `RUN_NAME`，保持 CDA、full sampler、R1-best 口径不变，避免融合池和消融池混在一起。
+
 ## 记录规范
 
 每次融合实验必须记录：
