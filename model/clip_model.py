@@ -30,10 +30,17 @@ _MODELS = {
     "ViT-L/14": "https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt",
 }
 
+_HF_MODELS = {
+    "GeoRSCLIP-ViT-B/32": ("Zilun/GeoRSCLIP", "ckpt/RS5M_ViT-B-32.pt"),
+    "GeoRSCLIP-ViT-B/32-RET2": ("Zilun/GeoRSCLIP", "ckpt/RS5M_ViT-B-32_RET-2.pt"),
+    "GeoRSCLIP-ViT-B/32-RSICD": ("Zilun/GeoRSCLIP", "ckpt/RS5M_ViT-B-32_RSICD.pt"),
+    "GeoRSCLIP-ViT-B/32-RSITMD": ("Zilun/GeoRSCLIP", "ckpt/RS5M_ViT-B-32_RSITMD.pt"),
+}
+
 
 def available_models() -> List[str]:
     """Returns the names of available CLIP models"""
-    return list(_MODELS.keys())
+    return list(_MODELS.keys()) + list(_HF_MODELS.keys())
 
 
 def normalize_clip_state_dict(checkpoint):
@@ -82,6 +89,23 @@ def _download(url: str, root: str):
         raise RuntimeError(f"Model has been downloaded but the SHA256 checksum does not not match")
 
     return download_target
+
+
+def _download_hf_model(repo_id: str, filename: str, root: str):
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
+        raise RuntimeError(
+            "Loading HuggingFace-hosted pretrained models requires `huggingface_hub`. "
+            "Install it with `pip install -U huggingface_hub`."
+        ) from exc
+
+    os.makedirs(root, exist_ok=True)
+    return hf_hub_download(
+        repo_id=repo_id,
+        filename=filename,
+        local_dir=root,
+    )
 
 
 class Bottleneck(nn.Module):
@@ -656,8 +680,12 @@ def build_CLIP_from_openai_pretrained(name: str, image_size: Union[int, Tuple[in
     model : torch.nn.Module
         The CLIP model
     """
+    download_root = download_root or os.path.expanduser("~/.cache/clip")
     if name in _MODELS:
-        model_path = _download(_MODELS[name], download_root or os.path.expanduser("~/.cache/clip"))
+        model_path = _download(_MODELS[name], download_root)
+    elif name in _HF_MODELS:
+        repo_id, filename = _HF_MODELS[name]
+        model_path = _download_hf_model(repo_id, filename, download_root)
     elif os.path.isfile(name):
         model_path = name
     else:
