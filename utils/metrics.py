@@ -52,22 +52,26 @@ class Evaluator():
 
         qids, gids, qfeats, gfeats = [], [], [], []
         # text
-        for pid, caption in self.txt_loader:
+        for batch_idx, (pid, caption) in enumerate(self.txt_loader):
             caption = caption.to(device)
             with torch.no_grad():
                 text_feat = model.encode_text(caption)
             qids.append(pid.view(-1)) # flatten 
             qfeats.append(text_feat.data.cpu())
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == len(self.txt_loader):
+                self.logger.info(f"encoded text batches {batch_idx + 1}/{len(self.txt_loader)}")
         qids = torch.cat(qids, 0)
         qfeats = torch.cat(qfeats, 0)
 
         # image
-        for pid, img in self.img_loader:
+        for batch_idx, (pid, img) in enumerate(self.img_loader):
             img = img.to(device)
             with torch.no_grad():
                 img_feat = model.encode_image(img)
             gids.append(pid.view(-1)) # flatten 
             gfeats.append(img_feat.data.cpu())
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == len(self.img_loader):
+                self.logger.info(f"encoded image batches {batch_idx + 1}/{len(self.img_loader)}")
         gids = torch.cat(gids, 0)
         gfeats = torch.cat(gfeats, 0)
 

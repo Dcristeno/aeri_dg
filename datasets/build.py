@@ -294,11 +294,11 @@ def build_zero_shot_loader(args, finetune=False):
 
     if not (finetune and getattr(args, "finetune_eval_mode", "test").lower() == "none"):
         val_img_loader = DataLoader(val_img_set,
-                                    batch_size=args.batch_size,
+                                    batch_size=args.test_batch_size,
                                     shuffle=False,
                                     num_workers=num_workers)
         val_txt_loader = DataLoader(val_txt_set,
-                                    batch_size=args.batch_size,
+                                    batch_size=args.test_batch_size,
                                     shuffle=False,
                                     num_workers=num_workers)
 
