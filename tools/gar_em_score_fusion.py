@@ -39,12 +39,25 @@ def load_expert_specs(path):
     if not experts:
         raise ValueError("Expert config must contain a non-empty `experts` list.")
     for index, expert in enumerate(experts):
-        if "checkpoint" not in expert:
-            raise ValueError(f"Expert {index} is missing `checkpoint`.")
-        if "config_file" not in expert:
-            raise ValueError(f"Expert {index} is missing `config_file`.")
+        if "score_cache" in expert:
+            if "checkpoint" in expert or "config_file" in expert:
+                raise ValueError(f"Expert {index} should use either `score_cache` or model fields, not both.")
+        else:
+            if "checkpoint" not in expert:
+                raise ValueError(f"Expert {index} is missing `checkpoint`.")
+            if "config_file" not in expert:
+                raise ValueError(f"Expert {index} is missing `config_file`.")
         expert.setdefault("name", f"expert_{index}")
     return experts
+
+
+def load_score_cache(path):
+    payload = torch.load(path, map_location="cpu")
+    required = ("similarity", "qids", "gids")
+    for key in required:
+        if key not in payload:
+            raise ValueError(f"Score cache {path} is missing `{key}`.")
+    return payload
 
 
 def apply_overrides(args, expert, cli_args):
@@ -112,6 +125,18 @@ def evaluate_similarity(similarity, qids, gids):
         "mAP": float(mean_ap.cpu().item()),
         "mINP": float(mean_inp.cpu().item()),
     }
+
+
+def save_score_cache(path, similarity, qids, gids, metadata):
+    torch.save(
+        {
+            "similarity": similarity.cpu(),
+            "qids": qids.cpu(),
+            "gids": gids.cpu(),
+            "metadata": metadata,
+        },
+        path,
+    )
 
 
 def normalize_by_query(values, neutral=0.5, eps=1e-12):
@@ -282,6 +307,11 @@ def build_args():
     parser.add_argument("--complement_weight", type=float, default=0.3)
     parser.add_argument("--uncertainty_weight", type=float, default=0.2)
     parser.add_argument("--adaptive_temperature", type=float, default=0.5)
+    parser.add_argument(
+        "--save_fusion_cache",
+        default="",
+        help="Comma-separated fusion methods to save as score caches, e.g. fixed,gar_em_prior_adaptive.",
+    )
     return parser.parse_args()
 
 
@@ -297,13 +327,26 @@ def main():
     reference_gids = None
 
     for spec in expert_specs:
-        args = load_train_configs(spec["config_file"])
-        args = apply_overrides(args, spec, cli_args)
-        img_loader, txt_loader, num_classes = build_dataloader(args)
-        model = build_finetune_model(args, num_classes=num_classes).to(device)
-        state = load_checkpoint_state(spec["checkpoint"])
-        missing, unexpected = model.load_state_dict(state, strict=False)
-        similarity, qids, gids = compute_similarity(model, img_loader, txt_loader, device)
+        if "score_cache" in spec:
+            cache = load_score_cache(spec["score_cache"])
+            similarity = cache["similarity"].float().cpu()
+            qids = cache["qids"].cpu()
+            gids = cache["gids"].cpu()
+            metrics = evaluate_similarity(similarity, qids, gids)
+            missing, unexpected = [], []
+            pretrain_choice = spec.get("pretrain_choice", "score_cache")
+            loss_names = spec.get("loss_names", "score_cache")
+        else:
+            args = load_train_configs(spec["config_file"])
+            args = apply_overrides(args, spec, cli_args)
+            img_loader, txt_loader, num_classes = build_dataloader(args)
+            model = build_finetune_model(args, num_classes=num_classes).to(device)
+            state = load_checkpoint_state(spec["checkpoint"])
+            missing, unexpected = model.load_state_dict(state, strict=False)
+            similarity, qids, gids = compute_similarity(model, img_loader, txt_loader, device)
+            metrics = evaluate_similarity(similarity, qids, gids)
+            pretrain_choice = getattr(args, "pretrain_choice", "")
+            loss_names = getattr(args, "loss_names", "")
 
         if reference_qids is None:
             reference_qids = qids
@@ -311,15 +354,15 @@ def main():
         elif not (torch.equal(reference_qids, qids) and torch.equal(reference_gids, gids)):
             raise ValueError("Experts must evaluate the same query/gallery pid order.")
 
-        metrics = evaluate_similarity(similarity, qids, gids)
         similarities.append(similarity)
         expert_rows.append(
             {
                 "name": spec["name"],
-                "checkpoint": spec["checkpoint"],
-                "config_file": spec["config_file"],
-                "pretrain_choice": getattr(args, "pretrain_choice", ""),
-                "loss_names": getattr(args, "loss_names", ""),
+                "checkpoint": spec.get("checkpoint", spec.get("score_cache", "")),
+                "config_file": spec.get("config_file", ""),
+                "score_cache": spec.get("score_cache", ""),
+                "pretrain_choice": pretrain_choice,
+                "loss_names": loss_names,
                 "missing_keys": len(missing),
                 "unexpected_keys": len(unexpected),
                 "metrics": metrics,
@@ -327,21 +370,18 @@ def main():
         )
 
     fusion_metrics = {}
+    fusion_similarities = {}
     mean_weights = torch.full((similarities[0].shape[0], len(similarities)), 1.0 / len(similarities))
-    fusion_metrics["mean"] = evaluate_similarity(
-        fuse_similarities(similarities, mean_weights),
-        reference_qids,
-        reference_gids,
-    )
+    mean_similarity = fuse_similarities(similarities, mean_weights)
+    fusion_similarities["mean"] = mean_similarity
+    fusion_metrics["mean"] = evaluate_similarity(mean_similarity, reference_qids, reference_gids)
 
     fixed = parse_weight_vector(cli_args.fixed_weights, len(similarities), "fixed weights")
     if fixed is not None:
         fixed_weights = fixed.unsqueeze(0).expand(similarities[0].shape[0], -1)
-        fusion_metrics["fixed"] = evaluate_similarity(
-            fuse_similarities(similarities, fixed_weights),
-            reference_qids,
-            reference_gids,
-        )
+        fixed_similarity = fuse_similarities(similarities, fixed_weights)
+        fusion_similarities["fixed"] = fixed_similarity
+        fusion_metrics["fixed"] = evaluate_similarity(fixed_similarity, reference_qids, reference_gids)
 
     adaptive_weights, components = compute_adaptive_weights(
         similarities,
@@ -352,11 +392,9 @@ def main():
         cli_args.uncertainty_weight,
         cli_args.adaptive_temperature,
     )
-    fusion_metrics["gar_em_adaptive"] = evaluate_similarity(
-        fuse_similarities(similarities, adaptive_weights),
-        reference_qids,
-        reference_gids,
-    )
+    adaptive_similarity = fuse_similarities(similarities, adaptive_weights)
+    fusion_similarities["gar_em_adaptive"] = adaptive_similarity
+    fusion_metrics["gar_em_adaptive"] = evaluate_similarity(adaptive_similarity, reference_qids, reference_gids)
 
     prior = parse_weight_vector(cli_args.prior_weights, len(similarities), "prior weights")
     prior_adaptive_weights = None
@@ -372,8 +410,10 @@ def main():
             prior_weights=prior,
             prior_strength=cli_args.prior_strength,
         )
+        prior_adaptive_similarity = fuse_similarities(similarities, prior_adaptive_weights)
+        fusion_similarities["gar_em_prior_adaptive"] = prior_adaptive_similarity
         fusion_metrics["gar_em_prior_adaptive"] = evaluate_similarity(
-            fuse_similarities(similarities, prior_adaptive_weights),
+            prior_adaptive_similarity,
             reference_qids,
             reference_gids,
         )
@@ -408,7 +448,35 @@ def main():
         json.dump(payload, handle, indent=2)
     save_markdown_report(op.join(cli_args.output_dir, "gar_em_score_fusion.md"), payload)
 
-    print(json.dumps({"report": json_path, "fusion": fusion_metrics}, indent=2))
+    cache_methods = [item.strip() for item in cli_args.save_fusion_cache.split(",") if item.strip()]
+    saved_caches = {}
+    for method in cache_methods:
+        if method not in fusion_similarities:
+            raise ValueError(
+                f"Cannot save unknown fusion method `{method}`. "
+                f"Available methods: {sorted(fusion_similarities.keys())}"
+            )
+        cache_path = op.join(cli_args.output_dir, f"{method}_score_cache.pth")
+        save_score_cache(
+            cache_path,
+            fusion_similarities[method],
+            reference_qids,
+            reference_gids,
+            {
+                "method": method,
+                "expert_config": cli_args.expert_config,
+                "metrics": fusion_metrics[method],
+                "experts": expert_rows,
+                "fixed_weights": fixed.tolist() if fixed is not None else None,
+                "prior_weights": prior.tolist() if prior is not None else None,
+                "prior_strength": cli_args.prior_strength,
+                "topk": cli_args.topk,
+                "adaptive_temperature": cli_args.adaptive_temperature,
+            },
+        )
+        saved_caches[method] = cache_path
+
+    print(json.dumps({"report": json_path, "fusion": fusion_metrics, "score_caches": saved_caches}, indent=2))
 
 
 if __name__ == "__main__":
