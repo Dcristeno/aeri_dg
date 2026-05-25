@@ -49,6 +49,73 @@ def triplet_loss_hard_from_similarity(S_t2v, S_v2t, margin=0.2):
 
     return (loss_t2v + loss_v2t) / 2
 
+def compute_pid_hard_negative_loss(
+    image_features,
+    text_features,
+    pid,
+    margin=0.2,
+    topk=1,
+    positive_reduce="max",
+    epsilon=1e-8,
+):
+    """
+    Batch hard-negative margin loss with PID-aware positives.
+
+    The loss optimizes both text->image and image->text retrieval. Samples with
+    the same PID are treated as positives and excluded from the negative pool;
+    the hardest top-k remaining candidates form the negative cluster.
+    """
+    batch_size = image_features.shape[0]
+    if batch_size <= 1:
+        return image_features.sum() * 0.0
+
+    pid = pid.reshape((batch_size, 1))
+    positive_mask = (pid == pid.t())
+    negative_mask = ~positive_mask
+    if not negative_mask.any().item():
+        return image_features.sum() * 0.0
+
+    image_norm = F.normalize(image_features, dim=-1)
+    text_norm = F.normalize(text_features, dim=-1)
+    sim_t2i = text_norm @ image_norm.t()
+    sim_i2t = sim_t2i.t()
+
+    positive_reduce = str(positive_reduce).lower()
+
+    def reduce_positive(similarity):
+        masked = similarity.masked_fill(~positive_mask, float("-inf"))
+        if positive_reduce == "mean":
+            counts = positive_mask.sum(dim=1).clamp_min(1)
+            return similarity.masked_fill(~positive_mask, 0.0).sum(dim=1) / counts
+        if positive_reduce == "logsumexp":
+            counts = positive_mask.sum(dim=1).clamp_min(1).float()
+            return torch.logsumexp(masked, dim=1) - torch.log(counts + epsilon)
+        if positive_reduce != "max":
+            raise ValueError(f"Unsupported positive_reduce: {positive_reduce}")
+        return masked.max(dim=1)[0]
+
+    def hard_negative_cluster(similarity):
+        masked = similarity.masked_fill(~negative_mask, float("-inf"))
+        k = min(max(int(topk), 1), max(batch_size - 1, 1))
+        values = torch.topk(masked, k=k, dim=1).values
+        finite_mask = torch.isfinite(values)
+        if not finite_mask.any().item():
+            return None
+        values = values.masked_fill(~finite_mask, 0.0)
+        counts = finite_mask.sum(dim=1).clamp_min(1)
+        return values.sum(dim=1) / counts
+
+    pos_t2i = reduce_positive(sim_t2i)
+    pos_i2t = reduce_positive(sim_i2t)
+    neg_t2i = hard_negative_cluster(sim_t2i)
+    neg_i2t = hard_negative_cluster(sim_i2t)
+    if neg_t2i is None or neg_i2t is None:
+        return image_features.sum() * 0.0
+
+    loss_t2i = F.relu(float(margin) + neg_t2i - pos_t2i).mean()
+    loss_i2t = F.relu(float(margin) + neg_i2t - pos_i2t).mean()
+    return 0.5 * (loss_t2i + loss_i2t)
+
 def find_mutual_nearest_neighbors(image_features, text_features, k):
     # 归一化特征向量
     image_features = F.normalize(image_features, p=2, dim=1)

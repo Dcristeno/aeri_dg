@@ -1,5 +1,10 @@
 from model import objectives
-from model.finetune_losses import compute_bridge_losses, compute_cda_loss, compute_fta_loss
+from model.finetune_losses import (
+    compute_bridge_losses,
+    compute_cda_loss,
+    compute_fta_loss,
+    compute_hard_negative_loss,
+)
 from .clip_model import Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
 import torch
 import torch.nn as nn
@@ -265,6 +270,9 @@ class IRRA(nn.Module):
 
         if 'cda' in self.current_task:
             ret.update({'cda_loss': compute_cda_loss(i_feats, g_i_feats, t_feats, batch['pids'], logit_scale)})
+
+        if 'hardneg' in self.current_task:
+            ret.update({'hard_negative_loss': compute_hard_negative_loss(self.args, i_feats, t_feats, batch['pids'])})
 
         if 'bridge' in self.current_task:
             ret.update(compute_bridge_losses(self.args, i_feats, g_i_feats, t_feats, batch['pids'], logit_scale))

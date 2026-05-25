@@ -71,6 +71,8 @@
 
 注意：`CDA`、`FTA`、`Bridge` 在消融池里用于证明模块贡献；在融合池里，如果使用训练目标维度，应该作为不同专家能力来源，而不是简单把同一条完整方法链路的几个 checkpoint 互相融合。
 
+Hard negative 训练目标已接入为 `LOSS_NAMES='cda+hardneg'`。训练命令和参数说明见 `docs/HARD_NEGATIVE_EXPERT.md`。
+
 ## 方向四：地空方向专用 Merge
 
 融合方法本身要体现地空图文检索特性，暂定名称：

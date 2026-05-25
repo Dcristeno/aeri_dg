@@ -16,6 +16,18 @@ def compute_cda_loss(aerial_feats, ground_feats, text_feats, pids, logit_scale):
     )
 
 
+def compute_hard_negative_loss(args, aerial_feats, text_feats, pids):
+    loss = objectives.compute_pid_hard_negative_loss(
+        aerial_feats,
+        text_feats,
+        pids,
+        margin=args.hard_negative_margin,
+        topk=args.hard_negative_topk,
+        positive_reduce=args.hard_negative_positive_reduce,
+    )
+    return loss * args.hard_negative_loss_weight
+
+
 def compute_bridge_losses(args, aerial_feats, ground_feats, text_feats, pids, logit_scale):
     if ground_feats is None:
         raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")

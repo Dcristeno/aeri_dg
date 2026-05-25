@@ -28,6 +28,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     meters = {
         "loss": AverageMeter(),
         "cda_loss": AverageMeter(),
+        "hard_negative_loss": AverageMeter(),
         "bridge_loss": AverageMeter(),
         "bridge_pair_loss": AverageMeter(),
         "bridge_distill_loss": AverageMeter(),
@@ -87,6 +88,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             
             meters['loss'].update(total_loss.item(), batch_size)
             meters['cda_loss'].update(ret.get('cda_loss', 0), batch_size)
+            meters['hard_negative_loss'].update(ret.get('hard_negative_loss', 0), batch_size)
             meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
             meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
             meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)
