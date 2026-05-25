@@ -1,19 +1,31 @@
-# OpenCLIP LAION ViT-B/32 Direction
+# OpenCLIP LAION ViT-B/32 Internal Trial
 
 ## Decision
 
-After RemoteCLIP, GeoRSCLIP, and RS-M-CLIP, test a generic OpenCLIP LAION expert:
+OpenCLIP LAION ViT-B/32 is an internal control, not a formal direction-two expert.
 
 ```text
 model_name=ViT-B-32
 pretrained=laion2b_s34b_b79k
 ```
 
-This is not a remote-sensing-specific expert. It is a general large-scale web image-text pretraining source and should be used as a control for direction two:
+It is not remote-sensing-specific. It is a general large-scale web image-text pretraining source and was considered as a control:
 
 ```text
 Does generic OpenCLIP pretraining provide complementary evidence beyond OpenAI CLIP and RemoteCLIP?
 ```
+
+The zero-shot score-cache result is weak under the current protocol:
+
+```text
+R1=5.064
+R5=11.724
+R10=16.365
+mAP=4.247
+mINP=1.278
+```
+
+A fair full-recipe comparison would require exporting/adapting OpenCLIP weights into the current training stack and then running 60 epochs. That is outside the current direction-two scope. The formal result remains RemoteCLIP.
 
 The model can be loaded directly through OpenCLIP:
 

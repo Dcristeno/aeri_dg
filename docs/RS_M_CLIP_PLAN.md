@@ -1,10 +1,20 @@
-# RS-M-CLIP Direction
+# RS-M-CLIP Internal Trial
 
 ## Decision
 
-RS-M-CLIP is the next different-pretraining expert after RemoteCLIP and GeoRSCLIP.
+RS-M-CLIP is an internal trial and is not included in the formal direction-two fusion pool.
 
-Unlike RemoteCLIP/GeoRSCLIP, RS-M-CLIP uses an OpenCLIP HuggingFace model with a multilingual text encoder. It is not directly compatible with the current `cda+fta+bridge` finetuning path, which assumes the OpenAI CLIP BPE tokenizer and OpenAI-style text transformer. Therefore, use RS-M-CLIP as a score-cache expert first.
+Unlike RemoteCLIP/GeoRSCLIP, RS-M-CLIP uses an OpenCLIP HuggingFace model with a multilingual text encoder. It is not directly compatible with the current `cda+fta+bridge` finetuning path, which assumes the OpenAI CLIP BPE tokenizer and OpenAI-style text transformer. The zero-shot score-cache result is extremely weak under the current AERI-PEDES protocol:
+
+```text
+R1=0.195
+R5=0.765
+R10=1.319
+mAP=0.379
+mINP=0.179
+```
+
+This does not prove that RS-M-CLIP cannot work after adapter finetuning, but it does mean it should not enter the current score-level fusion pool. A fair RS-M-CLIP experiment would require a separate adapter-finetuning path, not the current direction-two pipeline.
 
 ## Build Score Cache
 

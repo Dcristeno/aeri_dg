@@ -1,10 +1,17 @@
-# GeoRSCLIP Direction
+# GeoRSCLIP Internal Trial
 
 ## Decision
 
-After RemoteCLIP, the next different-pretraining expert is GeoRSCLIP.
+GeoRSCLIP is an internal trial, not a formal direction-two result.
 
-GeoRSCLIP is trained on RS5M, a large remote-sensing image-text dataset, and is more directly compatible with AERI-PEDES text-image retrieval than GeoCLIP, whose main signal is geographic location/GPS alignment. This makes GeoRSCLIP a better second remote-sensing pretraining expert for merge direction two.
+GeoRSCLIP was tested because it is trained on RS5M, a large remote-sensing image-text dataset. It is more compatible with AERI-PEDES than GeoCLIP, but the fusion results show that it hurts R1 when added to the RemoteCLIP fusion pool. It can improve mAP/mINP, so it is best treated as a tail-ranking diagnostic expert rather than a formal direction-two expert.
+
+Formal direction two remains:
+
+```text
+OpenAI3 fixed meta + RemoteCLIP fixed r=0.08
+R1=49.959
+```
 
 ## Model Alias
 
@@ -113,4 +120,10 @@ OpenAI3 GAR-EM prior: R1=49.813, mAP=48.307, mINP=35.797
 OpenAI3 + RemoteCLIP fixed r=0.08: R1=49.959, mAP=48.383, mINP=35.844
 ```
 
-If GeoRSCLIP improves over RemoteCLIP, it becomes the direction-two main result. If it improves only mAP/mINP, report it as another remote-sensing pretraining source that helps tail ranking.
+Observed result summary:
+
+```text
+GeoRSCLIP increases mAP/mINP in some five-expert settings but consistently reduces R1 relative to RemoteCLIP-only fusion.
+```
+
+Do not include GeoRSCLIP in the main direction-two table. If mentioned, use it as an appendix note showing that not every remote-sensing pretraining source helps top-rank retrieval.

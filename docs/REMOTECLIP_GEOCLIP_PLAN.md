@@ -1,10 +1,19 @@
-# RemoteCLIP / GeoCLIP Direction
+# Direction Two: RemoteCLIP Different-Pretraining Expert
 
 ## Decision
 
-For merge direction two, prioritize RemoteCLIP first.
+For merge direction two, use RemoteCLIP as the only formal different-pretraining expert.
 
-RemoteCLIP is closer to AERI-PEDES because it is trained for remote-sensing vision-language alignment and should provide complementary aerial layout, land-cover, building, road, and overhead-view cues. GeoCLIP is useful conceptually, but its primary objective is image-to-GPS/geolocation alignment, so it is less directly compatible with the current text-to-image retrieval pipeline.
+RemoteCLIP is closest to AERI-PEDES because it is trained for remote-sensing vision-language alignment and provides complementary aerial layout, land-cover, building, road, and overhead-view cues. Other pretraining sources were considered, but they are not part of the formal direction-two result:
+
+```text
+GeoRSCLIP: trained successfully, but hurts R1 when added to the RemoteCLIP fusion pool; useful mainly for mINP/tail-ranking analysis.
+RS-M-CLIP: zero-shot cache is extremely weak under the current protocol and would require a separate adapter-finetuning route.
+OpenCLIP LAION: generic web pretraining, weak zero-shot under the current protocol and less relevant than RemoteCLIP.
+GeoCLIP: image-to-GPS/geolocation objective, not a direct text-image retrieval expert.
+```
+
+This keeps the paper narrative clean: direction two is instantiated by one task-relevant remote-sensing pretrained expert rather than a broad model sweep.
 
 ## First Expert
 
@@ -67,9 +76,9 @@ OpenAI ViT-B/16 full, OpenAI ViT-B/32 full, RemoteCLIP ViT-B/32 full
 
 The first goal is not to make RemoteCLIP the strongest single model. The goal is to verify whether a remote-sensing pretraining source recovers positive samples missed by the OpenAI CLIP experts and improves R1 or mAP/mINP under GAR-EM prior-adaptive fusion.
 
-## GeoCLIP Position
+## Other Pretraining Sources
 
-Keep GeoCLIP as a second-stage discussion or appendix experiment. It is better framed as geographic prior knowledge rather than a direct image-text retrieval expert. Only add it after RemoteCLIP has a clean training and fusion result.
+Do not include GeoCLIP, GeoRSCLIP, RS-M-CLIP, or OpenCLIP LAION in the formal direction-two table unless a later adapter-specific experiment changes the conclusion. They can remain internal notes or appendix-level negative/diagnostic trials.
 
 ## 2026-05-25 Results
 
