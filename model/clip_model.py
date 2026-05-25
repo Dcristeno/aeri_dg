@@ -35,6 +35,23 @@ def available_models() -> List[str]:
     """Returns the names of available CLIP models"""
     return list(_MODELS.keys())
 
+
+def normalize_clip_state_dict(checkpoint):
+    """Return a plain CLIP state_dict from common OpenAI/OpenCLIP checkpoint wrappers."""
+    state_dict = checkpoint
+    for key in ("state_dict", "model", "module"):
+        if isinstance(state_dict, dict) and key in state_dict and isinstance(state_dict[key], dict):
+            state_dict = state_dict[key]
+
+    cleaned = OrderedDict()
+    for key, value in state_dict.items():
+        if key.startswith("module."):
+            key = key[7:]
+        if key.startswith("model."):
+            key = key[6:]
+        cleaned[key] = value
+    return cleaned
+
 def _download(url: str, root: str):
     os.makedirs(root, exist_ok=True)
     filename = os.path.basename(url)
@@ -657,7 +674,7 @@ def build_CLIP_from_openai_pretrained(name: str, image_size: Union[int, Tuple[in
             jit = False
         state_dict = torch.load(model_path, map_location="cpu")
 
-    state_dict = state_dict or model.state_dict()
+    state_dict = normalize_clip_state_dict(state_dict or model.state_dict())
 
     vit = "visual.proj" in state_dict
 
