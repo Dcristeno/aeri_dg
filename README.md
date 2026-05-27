@@ -47,6 +47,24 @@ bash finetune.sh
 
 To enable SwanLab logging for finetuning, add `USE_SWANLAB=1`.
 
+## Paper Contribution Entrypoints
+
+The three paper contributions now have stable script entry points:
+
+| contribution | command |
+| --- | --- |
+| Random `k=2` sampling | `bash scripts/train_k_random.sh` |
+| FTA + Bridge | `bash scripts/train_fta_bridge.sh` |
+| GAR-EM merge | `bash scripts/merge_current_best_hardneg.sh` |
+
+The hard-negative expert used by the final merge can be trained with:
+
+```bash
+bash scripts/train_hardneg_expert.sh
+```
+
+See [scripts/README.md](scripts/README.md) and [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) for the current research state.
+
 The default finetune setup is the clean `CDA` baseline with the original training sampler. Run:
 
 ```bash

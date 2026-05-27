@@ -8,6 +8,14 @@ from collections import OrderedDict
 import torch
 import torch.nn.functional as F
 
+"""
+Contribution 3: score-level GAR-EM fusion.
+
+This tool evaluates individual experts, fixed score fusion, and retrieval-aware
+adaptive/prior-adaptive fusion. The current paper result uses the five-expert
+pool documented in `docs/merge/configs/currentbest_plus_hardneg.example.json`.
+"""
+
 REPO_ROOT = op.abspath(op.join(op.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)

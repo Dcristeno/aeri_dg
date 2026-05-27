@@ -4,6 +4,16 @@ import torch.nn.functional as F
 from . import objectives
 
 
+"""
+Finetune loss assembly for the paper contributions.
+
+- CDA is the baseline retrieval alignment objective.
+- FTA + Bridge is contribution 2 and is enabled with `LOSS_NAMES=cda+fta+bridge`.
+- HardNeg is a direction-three merge expert objective, enabled with
+  `LOSS_NAMES=cda+hardneg`; it is not part of the FTA+Bridge ablation chain.
+"""
+
+
 def compute_cda_loss(aerial_feats, ground_feats, text_feats, pids, logit_scale):
     if ground_feats is None:
         raise ValueError("cda loss requires ground image features, but the current batch does not provide them.")

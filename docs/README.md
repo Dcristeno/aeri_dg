@@ -7,6 +7,7 @@ This directory is organized around the current research state, not around the or
 - `CURRENT_STATUS.md`: current best result, accepted merge story, and immediate next actions.
 - `merge/GAR_EM_PROTOCOL.md`: method-level protocol for Ground-Aerial Retrieval-Aware Expert Merge.
 - `merge/DIRECTION_THREE_HARDNEG_RESULTS.md`: current global best fusion result.
+- `../scripts/README.md`: runnable entry points for the three paper contributions.
 
 ## Current Best
 

@@ -5,6 +5,14 @@ import numpy as np
 from utils.iotools import read_image
 
 
+"""
+Contribution 1: per-ID training sampling.
+
+The paper's k-random module is the `strategy="random"` path with
+`samples_per_id=2`. The heuristic strategies below are retained as internal
+controls, but the main reported contribution should use random k sampling.
+"""
+
 _IMAGE_SHARPNESS_SCORE_CACHE = {}
 _IMAGE_DESCRIPTOR_CACHE = {}
 
@@ -238,4 +246,3 @@ def sample_train_dataset_per_pid(
             raise ValueError(f"Unsupported train sampling strategy: {strategy}")
 
     return sampled_dataset
-

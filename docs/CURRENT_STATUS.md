@@ -31,6 +31,15 @@ The merge direction is now structured as a real expert pool rather than fusing c
 | Different training objective | HardNeg ViT-B/16 k2 adds similar-candidate separation | Done |
 | Retrieval-aware merge | GAR-EM score-level fixed/prior-adaptive fusion | Done for current paper scope |
 
+## Code Entrypoints
+
+| contribution | script | purpose |
+| --- | --- | --- |
+| Random k sampling | `scripts/train_k_random.sh` | trains CDA with random `k=2` per-ID sampling |
+| FTA + Bridge | `scripts/train_fta_bridge.sh` | trains the full FTA+Bridge pair-only recipe with random `k=2` |
+| Merge / GAR-EM | `scripts/merge_current_best_hardneg.sh` | reruns the current five-expert merge setting |
+| HardNeg expert | `scripts/train_hardneg_expert.sh` | trains the direction-three hard-negative expert used by merge |
+
 ## Key Results
 
 | result | R1 | note |
