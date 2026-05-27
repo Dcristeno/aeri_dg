@@ -31,6 +31,12 @@ The merge direction is now structured as a real expert pool rather than fusing c
 | Different training objective | HardNeg ViT-B/16 k2 adds similar-candidate separation | Done |
 | Retrieval-aware merge | GAR-EM score-level fixed/prior-adaptive fusion | Done for current paper scope |
 
+The three paper contributions are summarized in:
+
+```text
+CONTRIBUTIONS.md
+```
+
 ## Code Entrypoints
 
 | contribution | script | purpose |

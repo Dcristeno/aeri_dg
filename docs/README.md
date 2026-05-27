@@ -5,6 +5,7 @@ This directory is organized around the current research state, not around the or
 ## Start Here
 
 - `CURRENT_STATUS.md`: current best result, accepted merge story, and immediate next actions.
+- `CONTRIBUTIONS.md`: the three paper contributions and their code entry points.
 - `merge/GAR_EM_PROTOCOL.md`: method-level protocol for Ground-Aerial Retrieval-Aware Expert Merge.
 - `merge/DIRECTION_THREE_HARDNEG_RESULTS.md`: current global best fusion result.
 - `../scripts/README.md`: runnable entry points for the three paper contributions.
@@ -28,6 +29,7 @@ R1 = 49.959
 docs/
   README.md
   CURRENT_STATUS.md
+  CONTRIBUTIONS.md
   merge/
     README.md
     GAR_EM_PROTOCOL.md

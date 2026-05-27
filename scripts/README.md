@@ -2,6 +2,12 @@
 
 These scripts are the stable command entry points for the three paper contributions.
 
+The contribution-level narrative is recorded in:
+
+```text
+docs/CONTRIBUTIONS.md
+```
+
 Run them from the repository root after activating the training environment:
 
 ```bash
