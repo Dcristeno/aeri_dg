@@ -73,7 +73,7 @@ logs/merge/openai3_meta_prior_082_008_010/fixed_score_cache.pth
 Create the pool:
 
 ```bash
-cat > docs/merge_pool_openai3_fixed_meta_openclip_laion.json <<'JSON'
+cat > docs/merge/configs/merge_pool_openai3_fixed_meta_openclip_laion.json <<'JSON'
 {
   "experts": [
     {
@@ -97,7 +97,7 @@ Recommended scan:
 
 ```bash
 python tools/gar_em_score_fusion.py \
-  --expert_config docs/merge_pool_openai3_fixed_meta_openclip_laion.json \
+  --expert_config docs/merge/configs/merge_pool_openai3_fixed_meta_openclip_laion.json \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/openai3_fixed_meta_plus_openclip_laion_w002 \
   --topk 10 \

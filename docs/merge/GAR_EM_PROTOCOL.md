@@ -71,7 +71,7 @@
 
 注意：`CDA`、`FTA`、`Bridge` 在消融池里用于证明模块贡献；在融合池里，如果使用训练目标维度，应该作为不同专家能力来源，而不是简单把同一条完整方法链路的几个 checkpoint 互相融合。
 
-Hard negative 训练目标已接入为 `LOSS_NAMES='cda+hardneg'`。训练命令和参数说明见 `docs/HARD_NEGATIVE_EXPERT.md`。方向三融合结果见 `docs/MERGE_DIRECTION_THREE_HARDNEG_RESULTS.md`，当前五专家最佳结果为 `OpenAI3 + RemoteCLIP + HardNeg` 的 GAR-EM prior-adaptive，`R1=50.513`。
+Hard negative 训练目标已接入为 `LOSS_NAMES='cda+hardneg'`。训练命令和参数说明见 `HARD_NEGATIVE_EXPERT.md`。方向三融合结果见 `DIRECTION_THREE_HARDNEG_RESULTS.md`，当前五专家最佳结果为 `OpenAI3 + RemoteCLIP + HardNeg` 的 GAR-EM prior-adaptive，`R1=50.513`。
 
 ## 方向四：地空方向专用 Merge
 
@@ -230,7 +230,7 @@ coefficient search -> retrieval-aware coefficient/search or expert weighting
 
 ```bash
 python tools/gar_em_score_fusion.py \
-  --expert_config docs/merge_pool.example.json \
+  --expert_config docs/merge/configs/merge_pool.example.json \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/gar_em_v1 \
   --topk 10 \
@@ -388,6 +388,6 @@ TEST_BATCH_SIZE=64
 
 结果写入：
 
-- `docs/EXP_LOG.md`
-- `docs/runs.csv`
-- 后续可新增 `docs/merge_runs.csv`
+- `docs/experiments/runs.csv`
+- `docs/merge/*RESULTS*.md`
+- 后续可新增 `docs/experiments/merge_runs.csv`

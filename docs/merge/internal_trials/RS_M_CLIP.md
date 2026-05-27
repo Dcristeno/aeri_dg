@@ -61,7 +61,7 @@ logs/merge/openai3_meta_prior_082_008_010/fixed_score_cache.pth
 Create a two-expert pool:
 
 ```bash
-cat > docs/merge_pool_openai3_fixed_meta_rs_m_clip.json <<'JSON'
+cat > docs/merge/configs/merge_pool_openai3_fixed_meta_rs_m_clip.json <<'JSON'
 {
   "experts": [
     {
@@ -85,7 +85,7 @@ Recommended weight scan:
 
 ```bash
 python tools/gar_em_score_fusion.py \
-  --expert_config docs/merge_pool_openai3_fixed_meta_rs_m_clip.json \
+  --expert_config docs/merge/configs/merge_pool_openai3_fixed_meta_rs_m_clip.json \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/openai3_fixed_meta_plus_rs_m_clip_w002 \
   --topk 10 \

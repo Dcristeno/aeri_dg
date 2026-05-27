@@ -48,4 +48,4 @@ CurrentBest + HardNeg h=0.05, GAR-EM prior-adaptive
 R1 = 50.513
 ```
 
-Full sweep: `docs/MERGE_DIRECTION_THREE_HARDNEG_RESULTS.md`.
+Full sweep: `DIRECTION_THREE_HARDNEG_RESULTS.md`.

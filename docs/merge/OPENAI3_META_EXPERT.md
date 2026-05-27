@@ -15,7 +15,7 @@ This avoids reloading the three OpenAI models every time RemoteCLIP, GeoRSCLIP, 
 Create the three-expert config:
 
 ```bash
-cat > docs/merge_pool_openai3.json <<'JSON'
+cat > docs/merge/configs/merge_pool_openai3.json <<'JSON'
 {
   "experts": [
     {
@@ -48,7 +48,7 @@ Save the prior-adaptive OpenAI3 cache:
 
 ```bash
 python tools/gar_em_score_fusion.py \
-  --expert_config docs/merge_pool_openai3.json \
+  --expert_config docs/merge/configs/merge_pool_openai3.json \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/openai3_meta_prior_082_008_010 \
   --topk 10 \
@@ -88,7 +88,7 @@ Use `score_cache` instead of `checkpoint` and `config_file`:
 Example: OpenAI3 meta + RemoteCLIP:
 
 ```bash
-cat > docs/merge_pool_openai3_meta_remoteclip.json <<'JSON'
+cat > docs/merge/configs/merge_pool_openai3_meta_remoteclip.json <<'JSON'
 {
   "experts": [
     {
@@ -114,7 +114,7 @@ Run the two-expert fusion:
 
 ```bash
 python tools/gar_em_score_fusion.py \
-  --expert_config docs/merge_pool_openai3_meta_remoteclip.json \
+  --expert_config docs/merge/configs/merge_pool_openai3_meta_remoteclip.json \
   --root_dir /home/wuyong/datasets \
   --output_dir logs/merge/openai3_meta_plus_remoteclip_w008 \
   --topk 10 \

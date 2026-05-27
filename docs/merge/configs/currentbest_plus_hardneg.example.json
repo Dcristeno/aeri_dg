@@ -1,0 +1,40 @@
+{
+  "experts": [
+    {
+      "name": "openai_vit_b16_full",
+      "config_file": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260521_081034_aeri_cda_fta_bridge_pair_k2_w2p0/configs.yaml",
+      "checkpoint": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260521_081034_aeri_cda_fta_bridge_pair_k2_w2p0/best0.pth",
+      "pretrain_choice": "ViT-B/16",
+      "loss_names": "cda+fta+bridge"
+    },
+    {
+      "name": "openai_vit_b32_full",
+      "config_file": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260522_164259_aeri_full_vit_b32_garem/configs.yaml",
+      "checkpoint": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260522_164259_aeri_full_vit_b32_garem/best0.pth",
+      "pretrain_choice": "ViT-B/32",
+      "loss_names": "cda+fta+bridge"
+    },
+    {
+      "name": "openai_vit_l14_full",
+      "config_file": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260522_222323_aeri_full_vit_l14_garem_b16/configs.yaml",
+      "checkpoint": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260522_222323_aeri_full_vit_l14_garem_b16/best0.pth",
+      "pretrain_choice": "ViT-L/14",
+      "loss_names": "cda+fta+bridge"
+    },
+    {
+      "name": "remoteclip_vit_b32_full",
+      "config_file": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260525_141417_aeri_remoteclip_vit_b32_full_r1/configs.yaml",
+      "checkpoint": "/home/wuyong/cfan_code/logs/AERI-PEDES/20260525_141417_aeri_remoteclip_vit_b32_full_r1/best0.pth",
+      "pretrain_choice": "/home/wuyong/pretrained/RemoteCLIP-ViT-B-32.pt",
+      "loss_names": "cda+fta+bridge",
+      "stride_size": 32
+    },
+    {
+      "name": "hardneg_vit_b16_k2",
+      "config_file": "/home/wuyong/aeri_dg/logs/AERI-PEDES/20260527_154906_aeri_cda_hardneg_k2_vit_b16_r1/configs.yaml",
+      "checkpoint": "/home/wuyong/aeri_dg/logs/AERI-PEDES/20260527_154906_aeri_cda_hardneg_k2_vit_b16_r1/best0.pth",
+      "pretrain_choice": "ViT-B/16",
+      "loss_names": "cda+hardneg"
+    }
+  ]
+}

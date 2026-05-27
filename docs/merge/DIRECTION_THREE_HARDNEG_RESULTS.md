@@ -67,6 +67,12 @@ Expert pool:
 | RemoteCLIP ViT-B/32 full | `/home/wuyong/cfan_code/logs/AERI-PEDES/20260525_141417_aeri_remoteclip_vit_b32_full_r1/best0.pth` |
 | HardNeg ViT-B/16 k2 | `/home/wuyong/aeri_dg/logs/AERI-PEDES/20260527_154906_aeri_cda_hardneg_k2_vit_b16_r1/best0.pth` |
 
+Config template:
+
+```text
+configs/currentbest_plus_hardneg.example.json
+```
+
 ## Sweep Results
 
 | HardNeg h | method | R1 | R5 | R10 | RSum | mAP | mINP |
