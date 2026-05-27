@@ -32,3 +32,20 @@ bash finetune.sh
 - It optimizes both text-to-aerial and aerial-to-text directions.
 - `HARD_NEGATIVE_TOPK` controls the hard-negative cluster size. `1` is the strict hardest-negative setting; `3` or `5` may be smoother for noisy batches.
 - Recommended first expert for merge pool: `cda+hardneg` plus random `k=2` sampling with the same backbone and initialization as the current OpenAI ViT-B/16 baseline. Random `k=2` keeps each epoch cheap and increases same-PID structure in the batch for hard-negative mining.
+
+## Result
+
+The completed HardNeg expert reached:
+
+| expert | best epoch | R1 | R5 | R10 | RSum | mAP | mINP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `aeri_cda_hardneg_k2_vit_b16_r1` | 59 | 48.103 | 66.113 | 75.004 | 189.220 | 46.031 | 33.031 |
+
+When added to the previous best `OpenAI3 + RemoteCLIP` pool, the best fusion result is:
+
+```text
+CurrentBest + HardNeg h=0.05, GAR-EM prior-adaptive
+R1 = 50.513
+```
+
+Full sweep: `docs/MERGE_DIRECTION_THREE_HARDNEG_RESULTS.md`.

@@ -29,6 +29,14 @@ Best direction-two result:
 | OpenAI3 GAR-EM prior | 49.813 | 66.650 | 74.955 | 191.418 | 48.307 | 35.797 |
 | OpenAI3 fixed meta + RemoteCLIP r=0.08 | **49.959** | 67.204 | 75.444 | 192.607 | 48.383 | 35.844 |
 
+Note: this remains the best direction-two result. It is no longer the global best after adding the direction-three HardNeg expert. See `docs/MERGE_DIRECTION_THREE_HARDNEG_RESULTS.md` for the current global best:
+
+```text
+OpenAI3 + RemoteCLIP + HardNeg
+GAR-EM prior-adaptive, HardNeg h=0.05
+R1 = 50.513
+```
+
 Gain:
 
 ```text

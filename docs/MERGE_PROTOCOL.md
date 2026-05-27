@@ -71,7 +71,7 @@
 
 注意：`CDA`、`FTA`、`Bridge` 在消融池里用于证明模块贡献；在融合池里，如果使用训练目标维度，应该作为不同专家能力来源，而不是简单把同一条完整方法链路的几个 checkpoint 互相融合。
 
-Hard negative 训练目标已接入为 `LOSS_NAMES='cda+hardneg'`。训练命令和参数说明见 `docs/HARD_NEGATIVE_EXPERT.md`。
+Hard negative 训练目标已接入为 `LOSS_NAMES='cda+hardneg'`。训练命令和参数说明见 `docs/HARD_NEGATIVE_EXPERT.md`。方向三融合结果见 `docs/MERGE_DIRECTION_THREE_HARDNEG_RESULTS.md`，当前五专家最佳结果为 `OpenAI3 + RemoteCLIP + HardNeg` 的 GAR-EM prior-adaptive，`R1=50.513`。
 
 ## 方向四：地空方向专用 Merge
 
